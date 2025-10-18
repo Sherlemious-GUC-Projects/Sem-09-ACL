@@ -1,6 +1,6 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
-import matplotlib.pyplot as plt
-import seaborn as sns
+from matplotlib import pyplot as plt
+from tqdm import tqdm
 import pandas as pd
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
@@ -47,6 +47,26 @@ def process_passenger_data(df: pd.DataFrame) -> pd.DataFrame:
     freq_encoding: pd.Series = df["Passanger_Name"].value_counts(normalize=True)
     df["Passanger_Name"] = df["Passanger_Name"].map(freq_encoding)
 
+    ### run the sentiment analysis on the review content ###
+    tqdm.pandas(desc="Computing sentiment scores")
+
+    sentiment_scores: pd.DataFrame = (
+        df["Review_content"]
+        .progress_apply(
+            lambda x: get_sentiment_scores(x)[0] if isinstance(x, str) else {}
+        )
+        .apply(pd.Series)
+    )
+    df = (
+        pd.concat([df, sentiment_scores], axis=1)
+        .drop(columns="Review_content")
+        .rename(
+            columns={
+                0: "Sentiment_Compound",
+            }
+        )
+    )
+
     ### make sure to drop any columns that are no longger needed ###
     object_cols = df.select_dtypes(include=["object"]).columns
     print(object_cols)
@@ -66,10 +86,11 @@ def main() -> int:
     df_passenger: pd.DataFrame = process_passenger_data(df[COLS_PASSENGER])
 
     ### cool stuff ###
-    print(get_sentiment_scores("I love flying with this airline!"))
-    print(get_sentiment_scores("This was the worst flight experience ever."))
-    print(get_sentiment_scores("The flight was okay, nothing special."))
-
+    df_passenger["Sentiment_Compound"].hist(bins=500)
+    plt.title("Sentiment Compound Score Distribution")
+    plt.xlabel("Sentiment Compound Score")
+    plt.ylabel("Frequency")
+    plt.show()
     return 0
 
 
