@@ -6,6 +6,7 @@ import pandas as pd
 ### ~~~ LOCAL IMPORTS ~~~ ###
 from explore_util import (
     load_data,
+    get_sentiment_scores,
     COLS,
     COLS_PASSENGER,
     COLS_FLIGHT,
@@ -65,6 +66,9 @@ def main() -> int:
     df_passenger: pd.DataFrame = process_passenger_data(df[COLS_PASSENGER])
 
     ### cool stuff ###
+    print(get_sentiment_scores("I love flying with this airline!"))
+    print(get_sentiment_scores("This was the worst flight experience ever."))
+    print(get_sentiment_scores("The flight was okay, nothing special."))
 
     return 0
 

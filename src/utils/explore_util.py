@@ -1,4 +1,5 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from matplotlib import pyplot as plt
 import pandas as pd
 import pathlib
@@ -127,6 +128,25 @@ def build_lat_long_loc_map(df: pd.DataFrame) -> dict[str, list]:
         lat_long_loc_map[index] = merged
 
     return lat_long_loc_map
+
+
+def get_sentiment_scores(sentence: str) -> tuple[float, int]:
+    """
+    Compute sentiment scores for a given sentence using VADER.
+    Args:
+        sentence, str: The input sentence to analyze.
+    Returns:
+        A tuple of the following:
+            - compound sentiment score (float)
+            - interpretation (int): 1 for positive, -1 for negative, 0 for neutral
+    """
+    ### init the analyzer ###
+    analyzer: SentimentIntensityAnalyzer = SentimentIntensityAnalyzer()
+    score: dict = analyzer.polarity_scores(sentence)
+    interpretation: int = (
+        1 if score["compound"] > 0.05 else (-1 if score["compound"] < -0.05 else 0)
+    )
+    return score["compound"], interpretation
 
 
 def main() -> int:
