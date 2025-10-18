@@ -49,7 +49,6 @@ def process_passenger_data(df: pd.DataFrame) -> pd.DataFrame:
 
     ### run the sentiment analysis on the review content ###
     tqdm.pandas(desc="Computing sentiment scores")
-
     sentiment_scores: pd.DataFrame = (
         df["Review_content"]
         .progress_apply(
@@ -67,9 +66,15 @@ def process_passenger_data(df: pd.DataFrame) -> pd.DataFrame:
         )
     )
 
+    ### drop the review title column ###
+    """
+    we do so as running the sentiment analysis on it resulted in a very sparse distribution
+    """
+    df.drop(columns=["Review_title"], inplace=True)
+
     ### make sure to drop any columns that are no longger needed ###
     object_cols = df.select_dtypes(include=["object"]).columns
-    print(object_cols)
+    df.drop(columns=object_cols, inplace=True)
 
     return df
 
@@ -81,6 +86,9 @@ def main() -> int:
 
     ### load the data ###
     df: pd.DataFrame = load_data(input_path)
+
+    ### ~~~ BETA ~~~ ###
+    df = df[:500]
 
     ### process passenger data ###
     df_passenger: pd.DataFrame = process_passenger_data(df[COLS_PASSENGER])
