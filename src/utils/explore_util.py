@@ -18,11 +18,10 @@ COLS = [
     "Review_content",
     "Traveller_Type",
     "Class",
-    # flight data
+    # spatial data
     "Flying_Date",
     "Layover_Route",
     "Route",
-    # spatial data
     "Start_Location",
     "End_Location",
     "Start_Latitude",
@@ -33,8 +32,7 @@ COLS = [
     "End_Address",
 ]
 COLS_PASSENGER = COLS[0:7]
-COLS_FLIGHT = COLS[7:11]
-COLS_SPATIAL = COLS[11:]
+COLS_SPATIAL = COLS[7:]
 
 
 def load_data(path: str) -> pd.DataFrame:
