@@ -13,6 +13,8 @@ class Backend(TypedDict):
     lon_rad: np.ndarray
     codes: np.ndarray
     names: np.ndarray
+    continents: np.ndarray
+    countries: np.ndarray
 
 
 ### ~~~ CONSTANTS ~~~ ###
@@ -61,6 +63,8 @@ def load_airports_csv(
     )  # type: ignore[assignment]
 
     ### select + rename to your style ###
+    # print(df[["continent", "iso_country"]])
+    # exit()
     out: pd.DataFrame = (
         df.assign(Code=code)
         .rename(
@@ -70,7 +74,7 @@ def load_airports_csv(
                 "latitude_deg": "Latitude",
                 "longitude_deg": "Longitude",
             }
-        )[["Code", "Name", "Type", "Latitude", "Longitude"]]
+        )[["Code", "Name", "Type", "Latitude", "Longitude", "continent", "iso_country"]]
         .copy()
     )
 
@@ -99,6 +103,8 @@ def build_spatial_backend(
               'lon_rad': np.ndarray,
               'codes': np.ndarray,
               'names': np.ndarray
+              'continents': np.ndarray,
+              'countries': np.ndarray,
             }
     """
     ### extract arrays (no mutation) ###
@@ -106,6 +112,8 @@ def build_spatial_backend(
     lon_rad: np.ndarray = airports["Lon_rad"].to_numpy()
     codes: np.ndarray = airports["Code"].astype(str).to_numpy()
     names: np.ndarray = airports["Name"].astype(str).to_numpy()
+    continents: np.ndarray = airports["continent"].astype(str).to_numpy()
+    countries: np.ndarray = airports["iso_country"].astype(str).to_numpy()
 
     ### BallTree backend ###
     tree: BallTree = BallTree(np.c_[lat_rad, lon_rad], metric="haversine")
@@ -117,55 +125,11 @@ def build_spatial_backend(
         "lon_rad": lon_rad,
         "codes": codes,
         "names": names,
+        "continents": continents,
+        "countries": countries,
     }
 
     return backend
-
-
-def nearest_airport_one(
-    lat_deg: float,
-    lon_deg: float,
-    backend: Backend,
-    max_km: Optional[float] = None,
-) -> Optional[dict]:
-    """
-    Given a single (lat, lon), find the nearest airport.
-        - Uses the provided functional 'backend' (BallTree, cKDTree, or brute).
-        - Computes true great-circle distance in km.
-        - Applies optional max_km filter: returns None if no airport within radius.
-    Args:
-        lat_deg, float: Latitude in degrees.
-        lon_deg, float: Longitude in degrees.
-        backend, Backend: Output of build_spatial_backend(...).
-        max_km, float|None: Maximum allowed distance in km (optional).
-    Returns:
-        result, dict|None: {'Code','Name','Distance_km','Index'} or None.
-    """
-    ### prepare query in radians ###
-    lat_q: float = np.radians(float(lat_deg))
-    lon_q: float = np.radians(float(lon_deg))
-
-    ### fetch backend data ###
-    codes: np.ndarray = backend["codes"]
-    names: np.ndarray = backend["names"]
-
-    ### query the tree ###
-    dist_rad, idx = backend["tree"].query(np.array([[lat_q, lon_q]]), k=1)
-    j = int(idx[0, 0])
-
-    ### convert to km ###
-    d_km = float(dist_rad[0, 0] * EARTH_RADIUS_KM)
-
-    ### apply max_km if set ###
-    if (max_km is not None) and (d_km > max_km):
-        return None
-
-    return {
-        "Code": str(codes[j]),
-        "Name": str(names[j]),
-        "Distance_km": d_km,
-        "Index": j,
-    }
 
 
 def nearest_airport_batch(
@@ -183,7 +147,16 @@ def nearest_airport_batch(
         backend, Backend: Output of build_spatial_backend(...).
         max_km, float|None: Optional maximum distance in km.
     Returns:
-        df, pd.DataFrame: Columns ['Query_Lat','Query_Lon','Code','Name','Distance_km','Index']
+        df, pd.DataFrame: Columns [
+            'Query_Lat',
+            'Query_Lon',
+            'Code',
+            'Name',
+            'Distance_km',
+            'Continents',
+            'Countries',
+            'Index'
+        ]
     """
     ### materialize inputs (no mutation) ###
     coords_arr: np.ndarray = np.asarray(list(coords), dtype=float)
@@ -201,6 +174,8 @@ def nearest_airport_batch(
     ### fetch backend data ###
     codes: np.ndarray = backend["codes"]
     names: np.ndarray = backend["names"]
+    continents: np.ndarray = backend["continents"]
+    countries: np.ndarray = backend["countries"]
 
     ### query the tree by concatenated radians ###
     dist_rad, idx = backend["tree"].query(np.c_[q_lat_rad, q_lon_rad], k=K_NEIGHBORS)
@@ -212,12 +187,16 @@ def nearest_airport_batch(
     ### assemble result (apply radius if set) ###
     code_out = codes[j].astype(str)
     name_out = names[j].astype(str)
+    continent_out = continents[j].astype(str)
+    country_out = countries[j].astype(str)
 
     ### apply max_km if set ###
     if max_km is not None:
         mask = d_km <= max_km
         code_out = np.where(mask, code_out, None)  # type: ignore[assignment]
         name_out = np.where(mask, name_out, None)  # type: ignore[assignment]
+        continent_out = np.where(mask, continent_out, None)  # type: ignore[assignment]
+        country_out = np.where(mask, country_out, None)  # type: ignore[assignment]
         d_km = np.where(mask, d_km, np.nan)
         j = np.where(mask, j, -1)
 
@@ -227,6 +206,8 @@ def nearest_airport_batch(
             "Query_Lon": q_lon,
             "Code": code_out,
             "Name": name_out,
+            "Continent": continent_out,
+            "Country": country_out,
             "Distance_km": d_km,
             "Index": j,
         }
@@ -238,6 +219,7 @@ def map_dataframe_coords_to_airport(
     lat_col: str,
     lon_col: str,
     backend: Backend,
+    prefix: str = "Nearest_",
     max_km: Optional[float] = None,
 ) -> pd.DataFrame:
     """
@@ -249,6 +231,7 @@ def map_dataframe_coords_to_airport(
         lat_col, str: Name of the latitude column in df (degrees).
         lon_col, str: Name of the longitude column in df (degrees).
         backend, dict: Output of build_spatial_backend(...).
+        prefix, str: Prefix for the new columns.
         max_km, float|None: Optional maximum distance in km.
     Returns:
         df, pd.DataFrame: Copy of df with 3 appended columns.
@@ -258,16 +241,20 @@ def map_dataframe_coords_to_airport(
 
     ### compute batch nearest ###
     results = nearest_airport_batch(
-        coords=list(zip(base[lat_col].to_numpy(), base[lon_col].to_numpy())),
+        coords=list(zip(base[lat_col].to_list(), base[lon_col].to_list())),
         backend=backend,
         max_km=max_km,
     )
 
     ### merge columns in your style ###
     out = base.assign(
-        Nearest_Code=results["Code"].to_numpy(),
-        Nearest_Name=results["Name"].to_numpy(),
-        Nearest_Dist_km=results["Distance_km"].to_numpy(),
+        **{
+            f"{prefix}Code": results["Code"].to_numpy(),
+            f"{prefix}Name": results["Name"].to_numpy(),
+            f"{prefix}Continent": results["Continent"].to_numpy(),
+            f"{prefix}Country": results["Country"].to_numpy(),
+            f"{prefix}Dist_km": results["Distance_km"].to_numpy(),
+        }
     )
 
     return out
@@ -287,6 +274,7 @@ def test() -> int:
         lat_col="Start_Latitude",
         lon_col="Start_Longitude",
         backend=backend,
+        prefix="start_",
         max_km=100,
     )
     print(
@@ -294,9 +282,9 @@ def test() -> int:
             [
                 "Start_Latitude",
                 "Start_Longitude",
-                "Nearest_Code",
-                "Nearest_Name",
-                "Nearest_Dist_km",
+                "start_Code",
+                "start_Name",
+                "start_Dist_km",
             ]
         ].head(10)
     )
