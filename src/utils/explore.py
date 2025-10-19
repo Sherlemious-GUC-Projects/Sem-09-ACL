@@ -96,61 +96,14 @@ def process_spatial_data(df: pd.DataFrame) -> pd.DataFrame:
     ### copy the df to avoid modifying the original ###
     df = df.copy()
 
-    ### drop the flying date column and layover route ###
+    ### drop some columns ###
     """
-    As around 73% and 86% of the data respectively is missing
+    1) Flying_Date: The vast majority of the dates are missing, and
+       cannot be extracted from other columns.
+    2) Route: The route can be inferred from the start and
+       end locations and any layovers, so it is redundant information.
     """
-    # df.drop(columns=["Flying_Date", "Layover_Route"], inplace=True)
-
-    ### split the route on the str `to` ###
-    """
-    To do so we need to do the following:
-        1) strip any leading/trailing whitespace
-        2) get all masks:
-            1) get all routes that contain ` to ` (with spaces)
-            2) get all routes that DO NOT contain ` to ` (with spaces)
-            3) get all routes with NaNs
-        3) for routes that contain ` to `, split on it and keep both parts
-            1) for the first part, assign it to a new column `Route_From`
-               and Rote_To respectively
-            2) for the second part, try to split with the middle space; if
-               that fails, assign NaN to Route_From and Route_To
-            3) for the final part do the same as step 3.2 in the false case
-    """
-    ## step 1 ##
-    df.Route = df.Route.str.strip()
-
-    ## step 2 ##
-    # step 2.1 #
-    mask_contains_to: pd.Series = df.Route.str.contains(" to ", na=False)
-    # step 2.2 #
-    mask_not_contains_to: pd.Series = ~df.Route.str.contains(" to ", na=True)
-    # step 2.3 #
-    mask_nan: pd.Series = df.Route.isna()
-
-    ## step 3 ##
-    # step 3.1 #
-    df.loc[mask_contains_to, "Route_From"] = (
-        df.loc[mask_contains_to, "Route"].str.split(" to ").str[0].str.strip()
-    )
-    df.loc[mask_contains_to, "Route_To"] = (
-        df.loc[mask_contains_to, "Route"].str.split(" to ").str[1].str.strip()
-    )
-    # step 3.2 #
-    # tmp = df[mask_not_contains_to & df.Route.str.count(" ") == 1]
-    # use the abouve code to update the mask and the apply the operation
-    updated_mask_not_contains_to: pd.Series = (
-        mask_not_contains_to & df.Route.str.count(" ") == 1
-    )
-    df.loc[updated_mask_not_contains_to, "Route_From"] = (
-        df.loc[updated_mask_not_contains_to, "Route"].str.split(" ").str[0].str.strip()
-    )
-    df.loc[updated_mask_not_contains_to, "Route_To"] = (
-        df.loc[updated_mask_not_contains_to, "Route"].str.split(" ").str[1].str.strip()
-    )
-    # step 3.3 #
-    df.loc[mask_nan | (df.Route.str.count(" ") != 1), "Route_From"] = pd.NA
-    df.loc[mask_nan | (df.Route.str.count(" ") != 1), "Route_To"] = pd.NA
+    df.drop(columns=["Flying_Date", "Route"], inplace=True)
 
     return df
 
@@ -177,8 +130,21 @@ def main() -> int:
     Notes: start location and end location AND LAYOVER can NOT be missing if the route is present and vs
     therefore any string manipulation on the route column should be unnecessary
     Finally that means that the routes is irrelevant and should be dropped
+    Another note i know for fact that if a lat was given ill always have the long for it.
+    The missing values count for the various columns are as follows:
+    1) Start_Address: 1.67%
+    2) End_Address: 2.76%
+    3) Start_Location: 21.42%
+    4) End_Location: 21.42%
+    5) Start_Latitude: 1.67%
+    6) End_Latitude: 2.76%
     """
-    tmp = df[COLS_SPATIAL]
+    cols = ["Start_Address", "End_Address"]
+    alt_cols = ["Start_Location", "End_Location"]
+    alt2_cols = ["Start_Latitude", "End_Latitude"]
+    print(df_spatial[cols].isna().sum() / len(df_spatial) * 100)
+    print(df_spatial[alt_cols].isna().sum() / len(df_spatial) * 100)
+    print(df_spatial[alt2_cols].isna().sum() / len(df_spatial) * 100)
     return 0
 
 
