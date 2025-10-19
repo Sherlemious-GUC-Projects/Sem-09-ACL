@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
+import numpy as np
+import airportsdata as ad
+from tqdm import tqdm
 
 ### ~~~ CSV file paths ~~~ ###
 AIRLINE_SCRAPPED_REVIEW_CLEANED_PATH = "../../dbs/raw/AirlineScrappedReview_Cleaned.csv"
@@ -16,6 +19,37 @@ df_3: pd.DataFrame = pd.read_csv(SURVEY_DATA_INFLIGHT_SATISFACTION_SCORE_PATH)
 
 #global variable i think? 
 list_of_dfs: list[pd.DataFrame] = [df_0, df_1, df_2, df_3]
+
+
+### this works for customer comment and customer survey data inflight satisfaction score data
+def find_out_missing_aiports_from_airports_data(df: pd.DataFrame) -> list[str]:
+    """
+    Find out missing airports from the dataframe. // work on the surey data inflight satisfaction score and when ad throws error catch it and continue but put the missing airports in a list and return it. it exists inside origin_station_code and destination_station_code.
+    Args:
+        df, pd.DataFrame: The dataframe containing the flight data.
+    Returns:
+        list[str]: The list of missing airports.
+    """
+    #traverse the dataframe and check if the origin_station_code and destination_station_code exist in the ad dictionary    if not add it to the missing_airports list
+    # add a progress bar to the function
+    print("Finding out missing airports...")
+    missing_airports: list[str] = []
+    seen: set[str] = set()
+    iata = ad.load('IATA')
+    for i in tqdm(range(len(df))):
+        origin_val = df["origin_station_code"].iloc[i] if "origin_station_code" in df.columns else None
+        dest_val = df["destination_station_code"].iloc[i] if "destination_station_code" in df.columns else None
+
+        origin = str(origin_val).strip() if pd.notna(origin_val) else None
+        dest = str(dest_val).strip() if pd.notna(dest_val) else None
+
+        if origin and origin not in iata and origin not in seen:
+            missing_airports.append(origin)
+            seen.add(origin)
+        if dest and dest not in iata and dest not in seen:
+            missing_airports.append(dest)
+            seen.add(dest)
+    return missing_airports
 
 def load_flight_data(list_of_dfs: list[pd.DataFrame]) -> pd.DataFrame:
     """
@@ -36,11 +70,14 @@ def load_flight_data(list_of_dfs: list[pd.DataFrame]) -> pd.DataFrame:
     # traverse the list of dataframes and combine them into one dataframe
     # initialize a new dataframe to store the combined data
     combined_df = pd.DataFrame(columns=['routes'])
+
     for df in list_of_dfs:
         if "Start_Location" in df.columns and "End_Location" in df.columns:
             r = df["Start_Location"].astype(str).str.strip() + " -> " + df["End_Location"].astype(str).str.strip()
+
         elif "origin_station_code" in df.columns and "destination_station_code" in df.columns:
             r = df["origin_station_code"].astype(str).str.strip() + " -> " + df["destination_station_code"].astype(str).str.strip()
+
         elif "route" in df.columns:
             r = df["route"].astype(str).str.strip()
         else:
@@ -57,6 +94,11 @@ def main() -> int:
     """
     Main function to load flight data.
     """
+
+    #test the find_out_missing_aiports function
+    missing_airports = find_out_missing_aiports_from_airports_data(df_3)
+    print(missing_airports)
+    
     #load the flight data
     combined_df = load_flight_data(list_of_dfs)
     #show me the first 5 rows of the combined dataframe
@@ -67,6 +109,11 @@ def main() -> int:
     print(combined_df.shape)
     #show me the columns of the combined dataframe
     print(combined_df.columns)
+    
+    #load the airport data
+    iata = ad.load('IATA')
+    info = iata['ICN']
+    print(info['city'], info['country'], info['lat'], info['lon'])
     return 0;
 
 if __name__ == "__main__":
