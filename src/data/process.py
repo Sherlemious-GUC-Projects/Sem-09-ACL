@@ -29,8 +29,12 @@ def main() -> int:
     X: tensor_t = df.drop(columns=["Rating"]).to_numpy()
     y: tensor_t = df["Rating"].to_numpy()
 
+    ### get the column names as it might be useful later ###
+    X_col_names = df.drop(columns=["Rating"]).columns.to_list()
+    y_col_name = ["Rating"]
+
     ### split the data ###
-    X_train, X_temp, y_train, y_temp = train_test_split(
+    X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.3, random_state=42, stratify=y
     )
 
@@ -39,8 +43,10 @@ def main() -> int:
         output_path,
         X_train=X_train,
         y_train=y_train,
-        X_temp=X_temp,
-        y_temp=y_temp,
+        X_test=X_test,
+        y_test=y_test,
+        X_col_names=X_col_names,
+        y_col_name=y_col_name,
     )
 
     return 0
