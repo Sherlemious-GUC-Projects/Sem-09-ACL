@@ -7,6 +7,9 @@ import pandas as pd
 from explore_util import (
     load_data,
     get_sentiment_scores,
+    load_airports_csv,
+    build_spatial_backend,
+    map_dataframe_coords_to_airport,
     COLS,
     COLS_PASSENGER,
     COLS_SPATIAL,
@@ -84,10 +87,13 @@ def process_passenger_data(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def process_spatial_data(df: pd.DataFrame) -> pd.DataFrame:
+def process_spatial_data(
+    df: pd.DataFrame,
+    airport_path: str = "./dbs/raw/airports.csv",
+) -> pd.DataFrame:
     """
     Process flight-related data, by doing the following:
-        - ...
+        - Dropping columns
     Args:
         df, pd.DataFrame: The input DataFrame containing flight data.
     Returns:
@@ -105,6 +111,32 @@ def process_spatial_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     df.drop(columns=["Flying_Date", "Route"], inplace=True)
 
+    ### extract the airport info from the start and end locations ###
+    ## 1. load the airports data ##
+    df_airports: pd.DataFrame = load_airports_csv(airport_path)
+    ## 2. build the spatial backend ##
+    spatial_backend = build_spatial_backend(df_airports)
+    ## 3. map the start location to the nearest airport ##
+    df = map_dataframe_coords_to_airport(
+        df=df,
+        lat_col="Start_Latitude",
+        lon_col="Start_Longitude",
+        backend=spatial_backend,
+        prefix="Start_",
+    )
+    ## 4. map the end location to the nearest airport ##
+    df = map_dataframe_coords_to_airport(
+        df=df,
+        lat_col="End_Latitude",
+        lon_col="End_Longitude",
+        backend=spatial_backend,
+        prefix="End_",
+    )
+
+    ### convert the Layover column to a binary indicator ###
+    df["Has_Layover"] = df.Layover_Route.notna().astype(int)
+    df.drop(columns=["Layover_Route"], inplace=True)
+
     return df
 
 
@@ -115,6 +147,17 @@ def main() -> int:
 
     ### load the data ###
     df: pd.DataFrame = load_data(input_path)
+
+    ### drop all records with NaN in the coords columns ###
+    df.dropna(
+        subset=[
+            "Start_Latitude",
+            "Start_Longitude",
+            "End_Latitude",
+            "End_Longitude",
+        ],
+        inplace=True,
+    )
 
     ### ~~~ BETA ~~~ ###
     df = df[:]
@@ -139,12 +182,12 @@ def main() -> int:
     5) Start_Latitude: 1.67%
     6) End_Latitude: 2.76%
     """
-    cols = ["Start_Address", "End_Address"]
-    alt_cols = ["Start_Location", "End_Location"]
-    alt2_cols = ["Start_Latitude", "End_Latitude"]
-    print(df_spatial[cols].isna().sum() / len(df_spatial) * 100)
-    print(df_spatial[alt_cols].isna().sum() / len(df_spatial) * 100)
-    print(df_spatial[alt2_cols].isna().sum() / len(df_spatial) * 100)
+    cols = [
+        i
+        for i in df_spatial.columns.tolist()
+        if (i not in COLS_SPATIAL) and ("Start_" in i or "End_" in i)
+    ]
+    print(df_spatial[cols].describe(include="all"))
     return 0
 
 

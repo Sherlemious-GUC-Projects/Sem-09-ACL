@@ -221,12 +221,23 @@ def nearest_airport_batch(
             'Countries',
             'Index'
         ]
+    Notes:
+        - this methods assumes there is no NaN in coords.
     """
     ### materialize inputs (no mutation) ###
     coords_arr: np.ndarray = np.asarray(list(coords), dtype=float)
     if coords_arr.size == 0:
         return pd.DataFrame(
-            columns=["Query_Lat", "Query_Lon", "Code", "Name", "Distance_km", "Index"]
+            columns=[
+                "Query_Lat",
+                "Query_Lon",
+                "Code",
+                "Name",
+                "Continent",
+                "Country",
+                "Distance_km",
+                "Index",
+            ]
         )
 
     ### prepare queries in radians ###
@@ -257,10 +268,10 @@ def nearest_airport_batch(
     ### apply max_km if set ###
     if max_km is not None:
         mask = d_km <= max_km
-        code_out = np.where(mask, code_out, None)  # type: ignore[assignment]
-        name_out = np.where(mask, name_out, None)  # type: ignore[assignment]
-        continent_out = np.where(mask, continent_out, None)  # type: ignore[assignment]
-        country_out = np.where(mask, country_out, None)  # type: ignore[assignment]
+        code_out = np.where(mask, code_out, None)  # type: ignore
+        name_out = np.where(mask, name_out, None)  # type: ignore
+        continent_out = np.where(mask, continent_out, None)  # type: ignore
+        country_out = np.where(mask, country_out, None)  # type: ignore
         d_km = np.where(mask, d_km, np.nan)
         j = np.where(mask, j, -1)
 
