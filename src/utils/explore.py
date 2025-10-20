@@ -2,7 +2,6 @@
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 import pandas as pd
-import numpy as np
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
 from explore_util import (
@@ -43,7 +42,7 @@ def process_passenger_data(df: pd.DataFrame) -> pd.DataFrame:
         "First Class": 3,
         "Unknown": 4,
     }
-    df.loc["Class_Encoded"] = df["Class"].map(mapper)
+    df["Class_Encoded"] = df["Class"].map(mapper)
     df.drop(columns=["Class"], inplace=True)
 
     ### do a sparese encoding of the traveller type column ###
@@ -95,6 +94,12 @@ def process_spatial_data(
     """
     Process flight-related data, by doing the following:
         - Dropping columns
+        - Mapping start and end locations to nearest airports
+        - Converting layover information to a binary indicator
+        - Encoding categorical variables (continent, country, airport codes)
+          * using a hierarchical encoding scheme to avoid information loss
+          * Do a quick sanity check to insure there is a one-one mapping with the codes
+        - Dropping any remaining object-type columns.
     Args:
         df, pd.DataFrame: The input DataFrame containing flight data.
     Returns:
@@ -148,10 +153,6 @@ def process_spatial_data(
             "End_Dist_km",
             "Start_Name",  # they are redundant with the codes
             "End_Name",  # they are redundant with the codes
-            # "Start_Country",  # they are redundant with the codes
-            # "End_Country",  # they are redundant with the codes
-            # "Start_Continent",  # they are redundant with the codes
-            # "End_Continent",  # they are redundant with the codes
         ],
         inplace=True,
     )
@@ -178,6 +179,7 @@ def process_spatial_data(
     df["End_Code_freq"] = df["End_Code"].map(df["End_Code"].value_counts())
 
     ### sanity check ###
+    ## 1. get the columns of interest ##
     Start_cols_of_interest = [c for c in df.columns if c.startswith("Start_Cont_")] + [
         "Start_Country_freq",
         "Start_Code_freq",
@@ -186,8 +188,7 @@ def process_spatial_data(
         "End_Country_freq",
         "End_Code_freq",
     ]
-
-    # Check that every Start_Code has a unique combination of these encoded features
+    ## 2. check for one-to-one mapping ##
     Start_is_one_to_one = (
         df.groupby("Start_Code")[Start_cols_of_interest]
         .nunique()
@@ -200,10 +201,18 @@ def process_spatial_data(
         .apply(lambda s: (s <= 1).all(), axis=1)
         .all()
     )
+    ## 3. assert the one-to-one mapping ##
+    assert (
+        Start_is_one_to_one
+    ), "Start_Code encoding is not one-to-one with the Start code leading to information loss"
+    assert (
+        End_is_one_to_one
+    ), "End_Code encoding is not one-to-one with the End code leading to information loss"
 
-    print(f"Start_Code one-to-one mapping: {Start_is_one_to_one}")
-    print(f"End_Code one-to-one mapping: {End_is_one_to_one}")
-    print(df.dtypes)
+    ### drop any remaining object columns ###
+    object_cols = df.select_dtypes(include=["object"]).columns
+    df.drop(columns=object_cols, inplace=True)
+
     return df
 
 
@@ -227,13 +236,17 @@ def main() -> int:
     )
 
     ### ~~~ BETA ~~~ ###
-    df = df[:]
+    df = df[:3]
 
     ### process passenger data ###
-    # df_passenger: pd.DataFrame = process_passenger_data(df[COLS_PASSENGER])
+    df_passenger: pd.DataFrame = process_passenger_data(df[COLS_PASSENGER])
 
     ### process flight data ###
     df_spatial: pd.DataFrame = process_spatial_data(df[COLS_SPATIAL])
+
+    ### concatenate the dataframes ###
+    df_final: pd.DataFrame = pd.concat([df_passenger, df_spatial], axis=1)
+    df_final = df_final.astype(float)
 
     ### ~~~ BETA ~~~ ###
     """
@@ -249,12 +262,6 @@ def main() -> int:
     5) Start_Latitude: 1.67%
     6) End_Latitude: 2.76%
     """
-    cols = [
-        i
-        for i in df_spatial.columns.tolist()
-        if (i not in COLS_SPATIAL) and ("Start_" in i or "End_" in i)
-    ]
-    # print(df_spatial[cols].describe(include="all"))
     return 0
 
 
