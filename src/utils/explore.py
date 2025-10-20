@@ -14,6 +14,9 @@ from explore_util import (
 )
 
 
+    
+
+
 def process_passenger_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     Process passenger-related data. It does the following:
@@ -34,7 +37,7 @@ def process_passenger_data(df: pd.DataFrame) -> pd.DataFrame:
         "First Class": 3,
         "Unknown": 4,
     }
-    df.loc["Class_Encoded"] = df["Class"].map(mapper)
+    df["Class_Encoded"] = df["Class"].map(mapper)
     df.drop(columns=["Class"], inplace=True)
 
     ### do a sparese encoding of the traveller type column ###
@@ -54,22 +57,29 @@ def process_passenger_data(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+
+
+
 def main() -> int:
     """"""
-    ### init some stuff ###
-    input_path: str = "./dbs/raw/db.csv"
+    #load up the AirlineScrappedReview_Cleaned.csv file
+    df_0: pd.DataFrame = pd.read_csv("../../dbs/raw/AirlineScrappedReview_Cleaned.csv")
+    df_0.info()
+    df_0.head(5)
+    df_1 : pd.DataFrame = pd.read_csv("../../dbs/raw/Customer_comment.csv"
+    )
+    df_1.head(5)
 
-    ### load the data ###
-    df: pd.DataFrame = load_data(input_path)
 
-    ### process passenger data ###
-    df_passenger: pd.DataFrame = process_passenger_data(df[COLS_PASSENGER])
-
-    ### cool stuff ###
-    print(get_sentiment_scores("I love flying with this airline!"))
-    print(get_sentiment_scores("This was the worst flight experience ever."))
-    print(get_sentiment_scores("The flight was okay, nothing special."))
-
+    df_1.info()
+    df_2 : pd.DataFrame = pd.read_csv("../../dbs/raw/Passanger_booking_data.csv")
+    df_2.info()
+    df_2.head(5)
+    df_3 : pd.DataFrame = pd.read_csv("../../dbs/raw/Survey data_Inflight Satisfaction Score.csv")
+    df_3.info()
+    df_3.head(5)
+    
+   
     return 0
 
 
