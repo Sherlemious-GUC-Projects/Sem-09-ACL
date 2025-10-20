@@ -1,28 +1,40 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer  # type: ignore[import-untyped]
+from typing import Iterable, Optional, Tuple, TypedDict
+from sklearn.neighbors import BallTree  # type: ignore[import-untyped]
 from matplotlib import pyplot as plt
 import pandas as pd
+import numpy as np
 import pathlib
 import json
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
 # None
 
+
+### ~~~ CUSTOM TYPES ~~~ ###
+class Backend(TypedDict):
+    tree: BallTree
+    lat_rad: np.ndarray
+    lon_rad: np.ndarray
+    codes: np.ndarray
+    names: np.ndarray
+    continents: np.ndarray
+    countries: np.ndarray
+
+
 ### ~~~ STATE DEFINITION ~~~ ###
-COLS = [
-    # passenger data
-    "Passanger_Name",
+COLS: list[str] = [
+    "Passanger_Name",  # passenger data
     "Rating",
     "Verified",
     "Review_title",
     "Review_content",
     "Traveller_Type",
     "Class",
-    # flight data
-    "Flying_Date",
+    "Flying_Date",  # spatial data
     "Layover_Route",
     "Route",
-    # spatial data
     "Start_Location",
     "End_Location",
     "Start_Latitude",
@@ -32,9 +44,10 @@ COLS = [
     "End_Longitude",
     "End_Address",
 ]
-COLS_PASSENGER = COLS[0:7]
-COLS_FLIGHT = COLS[7:11]
-COLS_SPATIAL = COLS[11:]
+COLS_PASSENGER: list[str] = COLS[0:7]
+COLS_SPATIAL: list[str] = COLS[7:]
+EARTH_RADIUS_KM: float = 6371.0088
+K_NEIGHBORS: int = 1
 
 
 def load_data(path: str) -> pd.DataFrame:
@@ -52,82 +65,6 @@ def load_data(path: str) -> pd.DataFrame:
     df: pd.DataFrame = pd.read_csv(path)
 
     return df
-
-
-def pct_nan(df: pd.DataFrame, cols: list[str]) -> float:
-    """Mean of per-column NaN percentages for the given columns."""
-    return df[cols].isna().mean().mean() * 100
-
-
-def print_nan_overview(df: pd.DataFrame) -> None:
-    """Log NaN exploration using your existing print format."""
-    print("Nans for passenger data:", pct_nan(df, COLS_PASSENGER))
-    # print(df[COLS_PASSENGER].isna().sum() / len(df) * 100)
-
-    print("Nans for flight data:", pct_nan(df, COLS_FLIGHT))
-    # print(df[COLS_FLIGHT].isna().sum() / len(df) * 100)
-
-    print("Nans for spatial data:", pct_nan(df, COLS_SPATIAL))
-    print(df[COLS_SPATIAL].isna().sum() / len(df) * 100)
-    print("-" * 20)
-
-
-def print_spatial_uniques(df: pd.DataFrame) -> None:
-    """Log simple spatial uniqueness stats (your notation preserved)."""
-    print(
-        "Unique locations:",
-        df["Start_Location"].nunique() + df["End_Location"].nunique(),
-    )
-    print(
-        "Unique  latitudes:",
-        df["Start_Latitude"].nunique() + df["End_Latitude"].nunique(),
-    )
-
-
-def to_str(lat, long) -> str:
-    """String hash for (lat, long) as you defined it."""
-    return f"{lat:.6f}_{long:.6f}"
-
-
-def add_latlong_strings(df: pd.DataFrame) -> None:
-    """Add Start/End_LatLong_Str columns in-place (keeps your column names)."""
-    df["Start_LatLong_Str"] = df.apply(
-        lambda row: to_str(row["Start_Latitude"], row["Start_Longitude"]), axis=1
-    )
-    df["End_LatLong_Str"] = df.apply(
-        lambda row: to_str(row["End_Latitude"], row["End_Longitude"]), axis=1
-    )
-
-
-def build_lat_long_loc_map(df: pd.DataFrame) -> dict[str, list]:
-    """
-    Construct the mapping from LatLong string to associated locations
-    from both Start_ and End_ sides, de-duped while preserving order.
-    """
-    lat_long_index = (
-        pd.concat([df["Start_LatLong_Str"], df["End_LatLong_Str"]]).unique().tolist()
-    )
-
-    lat_long_loc_map: dict = {i: [] for i in lat_long_index}
-    for index in lat_long_index:
-        locs_start = (
-            df.loc[df["Start_LatLong_Str"] == index, "Start_Location"].dropna().tolist()
-        )
-        locs_end = (
-            df.loc[df["End_LatLong_Str"] == index, "End_Location"].dropna().tolist()
-        )
-
-        # merge start+end, de-dupe, preserve first-seen order
-        seen = set()
-        merged: list = []
-        for x in locs_start + locs_end:
-            if x not in seen:
-                seen.add(x)
-                merged.append(x)
-
-        lat_long_loc_map[index] = merged
-
-    return lat_long_loc_map
 
 
 def get_sentiment_scores(sentence: str) -> tuple[float, int]:
@@ -149,6 +86,275 @@ def get_sentiment_scores(sentence: str) -> tuple[float, int]:
     return score["compound"], interpretation
 
 
+def _to_radians(x: np.ndarray) -> np.ndarray:
+    """Convert degrees → radians (vectorized)."""
+    return np.radians(x.astype(float))
+
+
+def load_airports_csv(
+    path: str,
+    include_types: Tuple[str, ...] = (
+        "large_airport",
+        "medium_airport",
+    ),
+) -> pd.DataFrame:
+    """
+    Load the OurAirports airports.csv and do minimal cleaning.
+        - Reads the CSV.
+        - Filters rows by 'type' ∈ include_types.
+        - Drops rows with missing lat/lon.
+        - Resolves a canonical 'Code' column: prefer IATA, else ICAO 'ident'.
+        - Keeps only the columns we need, and adds radians for lat/lon.
+    Args:
+        path, str: Path to OurAirports airports.csv.
+        include_types, tuple[str, ...]: Airport types to retain.
+    Returns:
+        df, pd.DataFrame: Cleaned airports with columns:
+            ['Code','Name','Type','Latitude','Longitude','Lat_rad','Lon_rad']
+    """
+    ### read and copy ###
+    df: pd.DataFrame = pd.read_csv(path).copy()
+
+    ### filter on type + valid coords ###
+    df = df[df["type"].isin(include_types)]
+    df = df[(~df["latitude_deg"].isna()) & (~df["longitude_deg"].isna())]
+
+    ### resolve canonical code (IATA else ICAO) ###
+    code: pd.Series = np.where(
+        df["iata_code"].notna() & (df["iata_code"].astype(str).str.len() > 0),
+        df["iata_code"].astype(str),
+        df["ident"].astype(str),
+    )  # type: ignore[assignment]
+
+    ### select + rename to your style ###
+    # print(df[["continent", "iso_country"]])
+    # exit()
+    out: pd.DataFrame = (
+        df.assign(Code=code)
+        .rename(
+            columns={
+                "name": "Name",
+                "type": "Type",
+                "latitude_deg": "Latitude",
+                "longitude_deg": "Longitude",
+            }
+        )[["Code", "Name", "Type", "Latitude", "Longitude", "continent", "iso_country"]]
+        .copy()
+    )
+
+    ### radians (pure add) ###
+    out["Lat_rad"] = _to_radians(out["Latitude"].to_numpy())
+    out["Lon_rad"] = _to_radians(out["Longitude"].to_numpy())
+
+    return out
+
+
+def build_spatial_backend(
+    airports: pd.DataFrame,
+) -> Backend:
+    """
+    Prepare a pure, serializable description of the spatial backend.
+        - If scikit-learn is available: use BallTree with haversine metric.
+        - Else if SciPy is available: use cKDTree on unit sphere (XYZ).
+        - Else: fallback = no tree (we’ll do brute-force haversine).
+    Args:
+        airports, pd.DataFrame: Output of load_airports_csv(...).
+    Returns:
+        backend, Backend: A functional backend descriptor with:
+            {
+              'tree': object-or-None,
+              'lat_rad': np.ndarray,
+              'lon_rad': np.ndarray,
+              'codes': np.ndarray,
+              'names': np.ndarray
+              'continents': np.ndarray,
+              'countries': np.ndarray,
+            }
+    """
+    ### extract arrays (no mutation) ###
+    lat_rad: np.ndarray = airports["Lat_rad"].to_numpy()
+    lon_rad: np.ndarray = airports["Lon_rad"].to_numpy()
+    codes: np.ndarray = airports["Code"].astype(str).to_numpy()
+    names: np.ndarray = airports["Name"].astype(str).to_numpy()
+    continents: np.ndarray = airports["continent"].astype(str).to_numpy()
+    countries: np.ndarray = airports["iso_country"].astype(str).to_numpy()
+
+    ### BallTree backend ###
+    tree: BallTree = BallTree(np.c_[lat_rad, lon_rad], metric="haversine")
+
+    ### construct the backend object ###
+    backend: Backend = {
+        "tree": tree,
+        "lat_rad": lat_rad,
+        "lon_rad": lon_rad,
+        "codes": codes,
+        "names": names,
+        "continents": continents,
+        "countries": countries,
+    }
+
+    return backend
+
+
+def nearest_airport_batch(
+    coords: Iterable[Tuple[float, float]],
+    backend: Backend,
+    max_km: Optional[float] = None,
+) -> pd.DataFrame:
+    """
+    Vectorized batch nearest lookup.
+        - Accepts an iterable of (lat, lon) in degrees.
+        - Returns a DataFrame aligned to input order.
+        - Applies max_km if provided (rows with no match become NaN/None).
+    Args:
+        coords, Iterable[(float, float)]: Sequence of query coordinates.
+        backend, Backend: Output of build_spatial_backend(...).
+        max_km, float|None: Optional maximum distance in km.
+    Returns:
+        df, pd.DataFrame: Columns [
+            'Query_Lat',
+            'Query_Lon',
+            'Code',
+            'Name',
+            'Distance_km',
+            'Continents',
+            'Countries',
+            'Index'
+        ]
+    """
+    ### materialize inputs (no mutation) ###
+    coords_arr: np.ndarray = np.asarray(list(coords), dtype=float)
+    if coords_arr.size == 0:
+        return pd.DataFrame(
+            columns=["Query_Lat", "Query_Lon", "Code", "Name", "Distance_km", "Index"]
+        )
+
+    ### prepare queries in radians ###
+    q_lat = coords_arr[:, 0]
+    q_lon = coords_arr[:, 1]
+    q_lat_rad = _to_radians(q_lat)
+    q_lon_rad = _to_radians(q_lon)
+
+    ### fetch backend data ###
+    codes: np.ndarray = backend["codes"]
+    names: np.ndarray = backend["names"]
+    continents: np.ndarray = backend["continents"]
+    countries: np.ndarray = backend["countries"]
+
+    ### query the tree by concatenated radians ###
+    dist_rad, idx = backend["tree"].query(np.c_[q_lat_rad, q_lon_rad], k=K_NEIGHBORS)
+    j = idx[:, 0].astype(int)
+
+    ### convert to km ###
+    d_km = (dist_rad[:, 0] * EARTH_RADIUS_KM).astype(float)
+
+    ### assemble result (apply radius if set) ###
+    code_out = codes[j].astype(str)
+    name_out = names[j].astype(str)
+    continent_out = continents[j].astype(str)
+    country_out = countries[j].astype(str)
+
+    ### apply max_km if set ###
+    if max_km is not None:
+        mask = d_km <= max_km
+        code_out = np.where(mask, code_out, None)  # type: ignore[assignment]
+        name_out = np.where(mask, name_out, None)  # type: ignore[assignment]
+        continent_out = np.where(mask, continent_out, None)  # type: ignore[assignment]
+        country_out = np.where(mask, country_out, None)  # type: ignore[assignment]
+        d_km = np.where(mask, d_km, np.nan)
+        j = np.where(mask, j, -1)
+
+    return pd.DataFrame(
+        {
+            "Query_Lat": q_lat,
+            "Query_Lon": q_lon,
+            "Code": code_out,
+            "Name": name_out,
+            "Continent": continent_out,
+            "Country": country_out,
+            "Distance_km": d_km,
+            "Index": j,
+        }
+    )
+
+
+def map_dataframe_coords_to_airport(
+    df: pd.DataFrame,
+    lat_col: str,
+    lon_col: str,
+    backend: Backend,
+    prefix: str = "Nearest_",
+    max_km: Optional[float] = None,
+) -> pd.DataFrame:
+    """
+    Convenience wrapper to keep your pandas pipeline clean.
+        - Does NOT mutate the input DataFrame.
+        - Returns a new DataFrame with ['Nearest_Code','Nearest_Name','Nearest_Dist_km'] added.
+    Args:
+        df, pd.DataFrame: Input table with latitude/longitude columns.
+        lat_col, str: Name of the latitude column in df (degrees).
+        lon_col, str: Name of the longitude column in df (degrees).
+        backend, dict: Output of build_spatial_backend(...).
+        prefix, str: Prefix for the new columns.
+        max_km, float|None: Optional maximum distance in km.
+    Returns:
+        df, pd.DataFrame: Copy of df with 3 appended columns.
+    """
+    ### copy the df to avoid modifying the original ###
+    base = df.copy()
+
+    ### compute batch nearest ###
+    results = nearest_airport_batch(
+        coords=list(zip(base[lat_col].to_list(), base[lon_col].to_list())),
+        backend=backend,
+        max_km=max_km,
+    )
+
+    ### merge columns in your style ###
+    out = base.assign(
+        **{
+            f"{prefix}Code": results["Code"].to_numpy(),
+            f"{prefix}Name": results["Name"].to_numpy(),
+            f"{prefix}Continent": results["Continent"].to_numpy(),
+            f"{prefix}Country": results["Country"].to_numpy(),
+            f"{prefix}Dist_km": results["Distance_km"].to_numpy(),
+        }
+    )
+
+    return out
+
+
+def test() -> int:
+    """"""
+    path = "./dbs/raw/airports.csv"
+    df_path = "./dbs/raw/db.csv"
+
+    airports = load_airports_csv(path)
+    df = pd.read_csv(df_path)
+    backend = build_spatial_backend(airports)
+
+    df_mapped = map_dataframe_coords_to_airport(
+        df.dropna(subset=["Start_Latitude", "Start_Longitude"]),
+        lat_col="Start_Latitude",
+        lon_col="Start_Longitude",
+        backend=backend,
+        prefix="start_",
+        max_km=100,
+    )
+    print(
+        df_mapped[
+            [
+                "Start_Latitude",
+                "Start_Longitude",
+                "start_Code",
+                "start_Name",
+                "start_Dist_km",
+            ]
+        ].head(10)
+    )
+    return 0
+
+
 def main() -> int:
     """"""
     ### init some stuff ###
@@ -161,4 +367,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    exit(main())
+    exit(test())
