@@ -2,6 +2,7 @@
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 import pandas as pd
+import numpy as np
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
 from explore_util import (
@@ -132,11 +133,58 @@ def process_spatial_data(
         backend=spatial_backend,
         prefix="End_",
     )
+    ## 5. drop the remaining spatial columns ##
+    df.drop(
+        columns=[
+            "Start_Location",
+            "End_Location",
+            "Start_Address",
+            "End_Address",
+            "Start_Latitude",
+            "Start_Longitude",
+            "End_Latitude",
+            "End_Longitude",
+            "Start_Dist_km",
+            "End_Dist_km",
+            "Start_Name",  # they are redundant with the codes
+            "End_Name",  # they are redundant with the codes
+            # "Start_Country",  # they are redundant with the codes
+            # "End_Country",  # they are redundant with the codes
+            # "Start_Continent",  # they are redundant with the codes
+            # "End_Continent",  # they are redundant with the codes
+        ],
+        inplace=True,
+    )
 
     ### convert the Layover column to a binary indicator ###
     df["Has_Layover"] = df.Layover_Route.notna().astype(int)
     df.drop(columns=["Layover_Route"], inplace=True)
 
+    ### Encode the Airline column ###
+    df = pd.get_dummies(
+        df, columns=["Start_Continent"], prefix="Cont", drop_first=True, dtype=int
+    )
+    df["Start_Country_freq"] = df["Start_Country"].map(
+        df["Start_Country"].value_counts()
+    )
+    df["Start_Code_freq"] = df["Start_Code"].map(df["Start_Code"].value_counts())
+
+    ### sanity check ###
+
+    cols_of_interest = [c for c in df.columns if c.startswith("Cont_")] + [
+        "Start_Country_freq",
+        "Start_Code_freq",
+    ]
+
+    # Check that every Start_Code has a unique combination of these encoded features
+    is_one_to_one = (
+        df.groupby("Start_Code")[cols_of_interest]
+        .nunique()
+        .apply(lambda s: (s <= 1).all(), axis=1)
+        .all()
+    )
+
+    print("One-to-one mapping?", is_one_to_one)
     return df
 
 
@@ -187,7 +235,7 @@ def main() -> int:
         for i in df_spatial.columns.tolist()
         if (i not in COLS_SPATIAL) and ("Start_" in i or "End_" in i)
     ]
-    print(df_spatial[cols].describe(include="all"))
+    # print(df_spatial[cols].describe(include="all"))
     return 0
 
 
