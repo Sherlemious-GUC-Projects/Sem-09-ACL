@@ -161,30 +161,49 @@ def process_spatial_data(
     df.drop(columns=["Layover_Route"], inplace=True)
 
     ### Encode the Airline column ###
+    ## 1. do a sparse encoding of the continent columns ##
     df = pd.get_dummies(
-        df, columns=["Start_Continent"], prefix="Cont", drop_first=True, dtype=int
+        df, columns=["Start_Continent"], prefix="Start_Cont", drop_first=True, dtype=int
     )
+    df = pd.get_dummies(
+        df, columns=["End_Continent"], prefix="End_Cont", drop_first=True, dtype=int
+    )
+    ## 2. do a frequency encoding of the country ##
     df["Start_Country_freq"] = df["Start_Country"].map(
         df["Start_Country"].value_counts()
     )
+    df["End_Country_freq"] = df["End_Country"].map(df["End_Country"].value_counts())
+    ## 3. do a frequency encoding of the airport codes ##
     df["Start_Code_freq"] = df["Start_Code"].map(df["Start_Code"].value_counts())
+    df["End_Code_freq"] = df["End_Code"].map(df["End_Code"].value_counts())
 
     ### sanity check ###
-
-    cols_of_interest = [c for c in df.columns if c.startswith("Cont_")] + [
+    Start_cols_of_interest = [c for c in df.columns if c.startswith("Start_Cont_")] + [
         "Start_Country_freq",
         "Start_Code_freq",
     ]
+    End_cols_of_interest = [c for c in df.columns if c.startswith("End_Cont_")] + [
+        "End_Country_freq",
+        "End_Code_freq",
+    ]
 
     # Check that every Start_Code has a unique combination of these encoded features
-    is_one_to_one = (
-        df.groupby("Start_Code")[cols_of_interest]
+    Start_is_one_to_one = (
+        df.groupby("Start_Code")[Start_cols_of_interest]
+        .nunique()
+        .apply(lambda s: (s <= 1).all(), axis=1)
+        .all()
+    )
+    End_is_one_to_one = (
+        df.groupby("End_Code")[End_cols_of_interest]
         .nunique()
         .apply(lambda s: (s <= 1).all(), axis=1)
         .all()
     )
 
-    print("One-to-one mapping?", is_one_to_one)
+    print(f"Start_Code one-to-one mapping: {Start_is_one_to_one}")
+    print(f"End_Code one-to-one mapping: {End_is_one_to_one}")
+    print(df.dtypes)
     return df
 
 
