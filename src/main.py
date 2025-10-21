@@ -328,7 +328,7 @@ def run_shap_analysis(
     if shap_values.ndim == 3:
         shap_values = np.squeeze(shap_values, axis=-1)
 
-    # Generate and save the summary plot
+    # --- Global Feature Importance ---
     plt.figure(figsize=(10, 10))
     shap.summary_plot(
         shap_values,
@@ -345,6 +345,25 @@ def run_shap_analysis(
         plt.savefig(plot_path)
         print(f"SHAP summary plot saved to {plot_path}")
     plt.close()
+
+    # --- Local Feature Importance ---
+    i = 0
+    force_plot = shap.force_plot(
+        explainer.expected_value,
+        shap_values[i, :],
+        x_test_subset[i, :],
+        feature_names=feature_names,
+    )
+
+    if SHOW_PLOTS:
+        # The default force_plot is interactive and needs to be saved to HTML
+        plot_path = os.path.join(REPORTS_PATH, "shap_force_plot.html")
+        shap.save_html(plot_path, force_plot)
+        print(f"SHAP force plot saved to {plot_path}. Open this file in a browser to view.")
+    else:
+        plot_path = os.path.join(REPORTS_PATH, "shap_force_plot.html")
+        shap.save_html(plot_path, force_plot)
+        print(f"SHAP force plot saved to {plot_path}")
 
 
 def run_lime_analysis(
