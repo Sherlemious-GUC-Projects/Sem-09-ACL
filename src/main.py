@@ -1,17 +1,46 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
+import argparse
+from dataclasses import dataclass
+from typing import Callable, Dict, Tuple, TypeAlias
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.layers import Dense, Input, Dropout
-from tensorflow.keras.models import Model
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+)
+from sklearn.model_selection import cross_validate
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.layers import Dense, Dropout, Input
+from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
-from typing import TypeAlias, Tuple
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-# No local imports for now
 
 ### ~~~ CUSTOM TYPES ~~~ ###
 tensor_t: TypeAlias = np.ndarray
+
+
+@dataclass
+class EvaluationResult:
+    model_name: str
+    test_accuracy: float
+    test_weighted_f1: float
+    cross_val_accuracy: float
+    cross_val_weighted_f1: float
+    classification_summary: str
+    confusion: tensor_t
+
+
+model_runner_t: TypeAlias = Callable[
+    [tensor_t, tensor_t, tensor_t, tensor_t], EvaluationResult
+]
 
 ### ~~~ STATE DEFINITIONS ~~~ ###
 DATA_PATH = "dbs/cooked/data.npz"
@@ -22,20 +51,28 @@ LEARNING_RATE = 0.001
 EPOCHS = 1080
 BATCH_SIZE = 256
 VALIDATION_SPLIT = 0.2
+CV_FOLDS = 5
+AVAILABLE_MODELS = (
+    "mlp",
+    "logistic_regression",
+    "random_forest",
+    "gradient_boosting",
+    "svm",
+)
 
 ### ~~~ FUNCTION DEFINITIONS ~~~ ###
 
 
 def load_data(path: str) -> Tuple[tensor_t, tensor_t, tensor_t, tensor_t]:
     """
-    Loads training and testing data from a .npz file.
+    Load training and testing data from a NumPy binary file.
 
     Args:
-        path: The path to the .npz file.
+        path: The path to the NumPy `.npz` file containing the dataset.
 
     Returns:
-        A tuple containing training features, training labels,
-        testing features, and testing labels.
+        A tuple containing the training features, training labels, testing
+        features, and testing labels.
     """
     with np.load(path) as data:
         x_train = data["X_train"]
@@ -45,18 +82,19 @@ def load_data(path: str) -> Tuple[tensor_t, tensor_t, tensor_t, tensor_t]:
     return x_train, y_train, x_test, y_test
 
 
-def build_model_base(
+def build_mlp_model(
     input_shape: Tuple[int, ...], l2_reg: float, dropout_rate: float
 ) -> Model:
     """
-    Builds a simple feed-forward neural network.
+    Build the baseline multi-layer perceptron classifier.
+
     Args:
-        input_shape: The shape of the input data.
-        l2_reg: The L2 regularization factor.
-        dropout_rate: The dropout rate.
+        input_shape: The shape of the input feature tensor.
+        l2_reg: The L2 regularization factor to apply to dense layers.
+        dropout_rate: The dropout probability for regularization.
 
     Returns:
-        A compiled Keras model.
+        An uncompiled Keras model implementing the baseline architecture.
     """
     inputs = Input(shape=input_shape)
     x = Dense(128, activation="relu", kernel_regularizer=l2(l2_reg))(inputs)
@@ -64,38 +102,227 @@ def build_model_base(
     x = Dense(64, activation="relu", kernel_regularizer=l2(l2_reg))(x)
     x = Dropout(dropout_rate)(x)
     outputs = Dense(1, activation="sigmoid")(x)
-
     model: Model = Model(inputs=inputs, outputs=outputs)
-
     return model
 
 
-def main() -> None:
+def compute_cross_validation_metrics(
+    estimator: Pipeline, x_train: tensor_t, y_train: tensor_t
+) -> Tuple[float, float]:
     """
-    Main script execution function.
+    Compute mean cross-validation metrics for a scikit-learn estimator.
+
+    Args:
+        estimator: The estimator or pipeline to evaluate.
+        x_train: The training feature tensor.
+        y_train: The training label tensor.
+
+    Returns:
+        A tuple containing the mean accuracy and weighted F1-score across
+        the configured cross-validation folds.
     """
-    # Load data
-    x_train, y_train, x_test, y_test = load_data(DATA_PATH)
+    scores = cross_validate(
+        estimator,
+        x_train,
+        y_train,
+        cv=CV_FOLDS,
+        scoring={"accuracy": "accuracy", "f1_weighted": "f1_weighted"},
+        n_jobs=1,
+    )
+    cv_accuracy = float(np.mean(scores["test_accuracy"]))
+    cv_weighted_f1 = float(np.mean(scores["test_f1_weighted"]))
+    return cv_accuracy, cv_weighted_f1
 
-    # Build model
-    model = build_model_base(x_train.shape[1:], L2_REG, DROPOUT_RATE)
 
-    # Compile model
+def evaluate_predictions(
+    model_name: str,
+    y_true: tensor_t,
+    y_pred: tensor_t,
+    cross_val_accuracy: float,
+    cross_val_weighted_f1: float,
+) -> EvaluationResult:
+    """
+    Build an evaluation summary from ground truth and predicted labels.
+
+    Args:
+        model_name: A human-readable identifier for the evaluated model.
+        y_true: The ground-truth target labels.
+        y_pred: The predicted labels.
+        cross_val_accuracy: Mean cross-validation accuracy for the model.
+        cross_val_weighted_f1: Mean cross-validation weighted F1-score.
+
+    Returns:
+        A structured evaluation result containing cumulative metrics.
+    """
+    test_accuracy = float(accuracy_score(y_true, y_pred))
+    test_weighted_f1 = float(f1_score(y_true, y_pred, average="weighted"))
+    summary = classification_report(y_true, y_pred)
+    matrix = confusion_matrix(y_true, y_pred)
+    return EvaluationResult(
+        model_name=model_name,
+        test_accuracy=test_accuracy,
+        test_weighted_f1=test_weighted_f1,
+        cross_val_accuracy=cross_val_accuracy,
+        cross_val_weighted_f1=cross_val_weighted_f1,
+        classification_summary=summary,
+        confusion=matrix,
+    )
+
+
+def train_evaluate_sklearn_pipeline(
+    model_name: str,
+    pipeline: Pipeline,
+    x_train: tensor_t,
+    y_train: tensor_t,
+    x_test: tensor_t,
+    y_test: tensor_t,
+) -> EvaluationResult:
+    """
+    Train and evaluate a scikit-learn pipeline following the project protocol.
+
+    Args:
+        model_name: A descriptive identifier for the pipeline.
+        pipeline: The pipeline to train and evaluate.
+        x_train: Training features.
+        y_train: Training labels.
+        x_test: Testing features.
+        y_test: Testing labels.
+
+    Returns:
+        An evaluation summary capturing cross-validation and test metrics.
+    """
+    cross_val_accuracy, cross_val_weighted_f1 = compute_cross_validation_metrics(
+        pipeline, x_train, y_train
+    )
+    pipeline.fit(x_train, y_train)
+    y_pred = pipeline.predict(x_test)
+    return evaluate_predictions(
+        model_name,
+        y_test,
+        y_pred,
+        cross_val_accuracy,
+        cross_val_weighted_f1,
+    )
+
+
+def build_logistic_regression_pipeline() -> Pipeline:
+    """
+    Construct the logistic regression pipeline with feature scaling.
+
+    Returns:
+        A scikit-learn pipeline combining standard scaling and logistic regression.
+    """
+    classifier = LogisticRegression(
+        penalty="l2",
+        C=1.0,
+        solver="lbfgs",
+        class_weight="balanced",
+        max_iter=1000,
+        random_state=42,
+    )
+    pipeline = Pipeline(
+        steps=[
+            ("scaler", StandardScaler()),
+            ("classifier", classifier),
+        ]
+    )
+    return pipeline
+
+
+def build_random_forest_pipeline() -> Pipeline:
+    """
+    Construct the random forest classification pipeline.
+
+    Returns:
+        A scikit-learn pipeline wrapping the configured random forest classifier.
+    """
+    classifier = RandomForestClassifier(
+        n_estimators=400,
+        max_features="sqrt",
+        class_weight="balanced_subsample",
+        random_state=42,
+        n_jobs=-1,
+    )
+    pipeline = Pipeline(steps=[("classifier", classifier)])
+    return pipeline
+
+
+def build_gradient_boosting_pipeline() -> Pipeline:
+    """
+    Construct the gradient boosting classification pipeline.
+
+    Returns:
+        A scikit-learn pipeline wrapping the gradient boosting classifier.
+    """
+    classifier = GradientBoostingClassifier(
+        learning_rate=0.05,
+        n_estimators=300,
+        max_depth=3,
+        subsample=0.8,
+        random_state=42,
+    )
+    pipeline = Pipeline(steps=[("classifier", classifier)])
+    return pipeline
+
+
+def build_svm_pipeline() -> Pipeline:
+    """
+    Construct the support vector machine classification pipeline.
+
+    Returns:
+        A scikit-learn pipeline combining feature scaling with an SVM classifier.
+    """
+    classifier = SVC(
+        kernel="rbf",
+        C=1.0,
+        gamma="scale",
+        class_weight="balanced",
+        probability=True,
+        random_state=42,
+    )
+    pipeline = Pipeline(
+        steps=[
+            ("scaler", StandardScaler()),
+            ("classifier", classifier),
+        ]
+    )
+    return pipeline
+
+
+def run_mlp_model(
+    x_train: tensor_t,
+    y_train: tensor_t,
+    x_test: tensor_t,
+    y_test: tensor_t,
+) -> EvaluationResult:
+    """
+    Train and evaluate the baseline multi-layer perceptron classifier.
+
+    Args:
+        x_train: Training features.
+        y_train: Training labels.
+        x_test: Testing features.
+        y_test: Testing labels.
+
+    Returns:
+        An evaluation result describing the MLP performance.
+    """
+    model = build_mlp_model(x_train.shape[1:], L2_REG, DROPOUT_RATE)
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE),
         loss="binary_crossentropy",
         metrics=["accuracy"],
     )
-
-    # Define callbacks
     early_stopping = EarlyStopping(
-        monitor="val_loss", patience=5, restore_best_weights=True
+        monitor="val_loss",
+        patience=5,
+        restore_best_weights=True,
     )
     model_checkpoint = ModelCheckpoint(
-        MODEL_CHECKPOINT_PATH, save_best_only=True, monitor="val_loss"
+        MODEL_CHECKPOINT_PATH,
+        save_best_only=True,
+        monitor="val_loss",
     )
-
-    # Train model
     model.fit(
         x_train,
         y_train,
@@ -103,12 +330,168 @@ def main() -> None:
         batch_size=BATCH_SIZE,
         validation_split=VALIDATION_SPLIT,
         callbacks=[early_stopping, model_checkpoint],
+        verbose=0,
+    )
+    loss, accuracy = model.evaluate(x_test, y_test, verbose=0)
+    predictions = model.predict(x_test, verbose=0)
+    y_pred = (predictions.flatten() >= 0.5).astype(int)
+    result = evaluate_predictions("MLP", y_test, y_pred, float(np.nan), float(np.nan))
+    result.test_accuracy = float(accuracy)
+    result.test_weighted_f1 = float(f1_score(y_test, y_pred, average="weighted"))
+    return result
+
+
+def run_logistic_regression_model(
+    x_train: tensor_t,
+    y_train: tensor_t,
+    x_test: tensor_t,
+    y_test: tensor_t,
+) -> EvaluationResult:
+    """
+    Train and evaluate the logistic regression model.
+
+    Args:
+        x_train: Training features.
+        y_train: Training labels.
+        x_test: Testing features.
+        y_test: Testing labels.
+
+    Returns:
+        The evaluation summary for logistic regression.
+    """
+    pipeline = build_logistic_regression_pipeline()
+    return train_evaluate_sklearn_pipeline(
+        "Logistic Regression", pipeline, x_train, y_train, x_test, y_test
     )
 
-    # Evaluate model
-    loss, accuracy = model.evaluate(x_test, y_test)  # type: ignore
-    print(f"Test Loss: {loss:.4f}")
-    print(f"Test Accuracy: {accuracy:.4f}")
+
+def run_random_forest_model(
+    x_train: tensor_t,
+    y_train: tensor_t,
+    x_test: tensor_t,
+    y_test: tensor_t,
+) -> EvaluationResult:
+    """
+    Train and evaluate the random forest model.
+
+    Args:
+        x_train: Training features.
+        y_train: Training labels.
+        x_test: Testing features.
+        y_test: Testing labels.
+
+    Returns:
+        The evaluation summary for random forest classification.
+    """
+    pipeline = build_random_forest_pipeline()
+    return train_evaluate_sklearn_pipeline(
+        "Random Forest", pipeline, x_train, y_train, x_test, y_test
+    )
+
+
+def run_gradient_boosting_model(
+    x_train: tensor_t,
+    y_train: tensor_t,
+    x_test: tensor_t,
+    y_test: tensor_t,
+) -> EvaluationResult:
+    """
+    Train and evaluate the gradient boosting model.
+
+    Args:
+        x_train: Training features.
+        y_train: Training labels.
+        x_test: Testing features.
+        y_test: Testing labels.
+
+    Returns:
+        The evaluation summary for gradient boosting classification.
+    """
+    pipeline = build_gradient_boosting_pipeline()
+    return train_evaluate_sklearn_pipeline(
+        "Gradient Boosting", pipeline, x_train, y_train, x_test, y_test
+    )
+
+
+def run_svm_model(
+    x_train: tensor_t,
+    y_train: tensor_t,
+    x_test: tensor_t,
+    y_test: tensor_t,
+) -> EvaluationResult:
+    """
+    Train and evaluate the support vector machine model.
+
+    Args:
+        x_train: Training features.
+        y_train: Training labels.
+        x_test: Testing features.
+        y_test: Testing labels.
+
+    Returns:
+        The evaluation summary for SVM classification.
+    """
+    pipeline = build_svm_pipeline()
+    return train_evaluate_sklearn_pipeline(
+        "Support Vector Machine", pipeline, x_train, y_train, x_test, y_test
+    )
+
+
+def get_model_registry() -> Dict[str, model_runner_t]:
+    """
+    Build the registry mapping model identifiers to execution functions.
+
+    Returns:
+        A dictionary linking model keys to their respective runner functions.
+    """
+    return {
+        "mlp": run_mlp_model,
+        "logistic_regression": run_logistic_regression_model,
+        "random_forest": run_random_forest_model,
+        "gradient_boosting": run_gradient_boosting_model,
+        "svm": run_svm_model,
+    }
+
+
+def display_evaluation_result(result: EvaluationResult) -> None:
+    """
+    Pretty-print the evaluation metrics for a trained model.
+
+    Args:
+        result: The evaluation summary to display.
+    """
+    cross_val_accuracy = (
+        "N/A"
+        if np.isnan(result.cross_val_accuracy)
+        else f"{result.cross_val_accuracy:.4f}"
+    )
+    cross_val_weighted_f1 = (
+        "N/A"
+        if np.isnan(result.cross_val_weighted_f1)
+        else f"{result.cross_val_weighted_f1:.4f}"
+    )
+    print("=" * 80)
+    print(f"Model: {result.model_name}")
+    print(f"Test Accuracy: {result.test_accuracy:.4f}")
+    print(f"Test Weighted F1: {result.test_weighted_f1:.4f}")
+    print(f"CV Accuracy: {cross_val_accuracy}")
+    print(f"CV Weighted F1: {cross_val_weighted_f1}")
+    print("Classification Report:")
+    print(result.classification_summary)
+    print("Confusion Matrix:")
+    print(result.confusion)
+
+
+def main() -> None:
+    """
+    Main script execution function selecting, training, and evaluating models.
+    """
+    x_train, y_train, x_test, y_test = load_data(DATA_PATH)
+    model_registry = get_model_registry()
+    for model_key in get_model_registry().keys():
+        runner = model_registry[model_key]
+        result = runner(x_train, y_train, x_test, y_test)
+        display_evaluation_result(result)
 
 
 ### ~~~ SCRIPT EXECUTION ~~~ ###
