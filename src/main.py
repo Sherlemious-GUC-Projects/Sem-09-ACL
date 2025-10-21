@@ -44,7 +44,7 @@ model_runner_t: TypeAlias = Callable[
 
 ### ~~~ STATE DEFINITIONS ~~~ ###
 DATA_PATH = "dbs/cooked/data.npz"
-MODEL_CHECKPOINT_PATH = "models/best_model.keras"
+MODEL_CHECKPOINT_PATH = "src/models/best_model.keras"
 L2_REG = 0.01
 DROPOUT_RATE = 0.5
 LEARNING_RATE = 0.001
