@@ -1,2 +1,2 @@
 *.csv
-./src/models/*
+src/models/*
