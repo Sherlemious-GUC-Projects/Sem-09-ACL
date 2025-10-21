@@ -65,7 +65,9 @@ def main() -> int:
     X_test: tensor_t = preprocessor.transform(X_test_df)
 
     ### get the new column order from the transformer ###
-    X_col_names: list_str_t = preprocessor.get_feature_names_out()
+    X_col_names: list_str_t = [
+        name.split("__", 1)[-1] for name in preprocessor.get_feature_names_out()
+    ]
 
     ### save the data as one big npz file ###
     np.savez_compressed(
