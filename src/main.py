@@ -1,8 +1,13 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
-import argparse
+import os
 from dataclasses import dataclass
 from typing import Callable, Dict, Tuple, TypeAlias
+
+import lime
+import lime.lime_tabular
+import matplotlib.pyplot as plt
 import numpy as np
+import shap
 import tensorflow as tf
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -39,12 +44,13 @@ class EvaluationResult:
 
 
 model_runner_t: TypeAlias = Callable[
-    [tensor_t, tensor_t, tensor_t, tensor_t], EvaluationResult
+    [tensor_t, tensor_t, tensor_t, tensor_t, list[str]], EvaluationResult
 ]
 
 ### ~~~ STATE DEFINITIONS ~~~ ###
 DATA_PATH = "dbs/cooked/data.npz"
 MODEL_CHECKPOINT_PATH = "src/models/best_model.keras"
+REPORTS_PATH = "reports/explainability"
 L2_REG = 0.01
 DROPOUT_RATE = 0.5
 LEARNING_RATE = 0.001
@@ -59,11 +65,12 @@ AVAILABLE_MODELS = (
     "gradient_boosting",
     "svm",
 )
+SHOW_PLOTS = True
 
 ### ~~~ FUNCTION DEFINITIONS ~~~ ###
 
 
-def load_data(path: str) -> Tuple[tensor_t, tensor_t, tensor_t, tensor_t]:
+def load_data(path: str) -> Tuple[tensor_t, tensor_t, tensor_t, tensor_t, list[str]]:
     """
     Load training and testing data from a NumPy binary file.
 
@@ -72,14 +79,15 @@ def load_data(path: str) -> Tuple[tensor_t, tensor_t, tensor_t, tensor_t]:
 
     Returns:
         A tuple containing the training features, training labels, testing
-        features, and testing labels.
+        features, testing labels, and feature names.
     """
-    with np.load(path) as data:
+    with np.load(path, allow_pickle=True) as data:
         x_train = data["X_train"]
         y_train = data["y_train"]
         x_test = data["X_test"]
         y_test = data["y_test"]
-    return x_train, y_train, x_test, y_test
+        feature_names = data["X_col_names"].tolist()
+    return x_train, y_train, x_test, y_test, feature_names
 
 
 def build_mlp_model(
@@ -289,11 +297,111 @@ def build_svm_pipeline() -> Pipeline:
     return pipeline
 
 
+def run_shap_analysis(
+    model: Model, x_train: tensor_t, x_test: tensor_t, feature_names: list[str]
+) -> None:
+    """
+    Run SHAP analysis on the MLP model and save a summary plot.
+
+    Args:
+        model: The trained Keras model.
+        x_train: The training feature tensor.
+        x_test: The testing feature tensor.
+        feature_names: The names of the features.
+    """
+    print("--- Running SHAP Analysis ---")
+    number_of_samples = 50
+    # Use a subset of the training data for the explainer background
+    background = x_train[
+        np.random.choice(x_train.shape[0], number_of_samples, replace=False)
+    ]
+    explainer = shap.KernelExplainer(
+        lambda data: model.predict(data, verbose=0), background
+    )
+
+    # Use a subset of the test data for SHAP value calculation
+    x_test_subset = x_test[
+        np.random.choice(x_test.shape[0], number_of_samples, replace=False)
+    ]
+    shap_values = explainer.shap_values(x_test_subset)
+
+    if shap_values.ndim == 3:
+        shap_values = np.squeeze(shap_values, axis=-1)
+
+    # Generate and save the summary plot
+    plt.figure(figsize=(10, 10))
+    shap.summary_plot(
+        shap_values,
+        x_test_subset,
+        feature_names=feature_names,
+        show=False,
+    )
+    plt.tight_layout()
+
+    if SHOW_PLOTS:
+        plt.show()
+    else:
+        plot_path = os.path.join(REPORTS_PATH, "shap_summary.png")
+        plt.savefig(plot_path)
+        print(f"SHAP summary plot saved to {plot_path}")
+    plt.close()
+
+
+def run_lime_analysis(
+    model: Model,
+    x_train: tensor_t,
+    x_test: tensor_t,
+    y_train: tensor_t,
+    feature_names: list[str],
+) -> None:
+    """
+    Run LIME analysis on the MLP model and save an explanation.
+
+    Args:
+        model: The trained Keras model.
+        x_train: The training feature tensor.
+        x_test: The testing feature tensor.
+        y_train: The training label tensor.
+        feature_names: The names of the features.
+    """
+    print("--- Running LIME Analysis ---")
+    explainer = lime.lime_tabular.LimeTabularExplainer(
+        x_train,
+        feature_names=feature_names,
+        class_names=["class_0", "class_1"],
+        discretize_continuous=True,
+    )
+
+    def predict_fn_for_lime(x: np.ndarray) -> np.ndarray:
+        """Wrapper for model.predict to format output for LIME."""
+        predictions = model.predict(x, verbose=0)
+        return np.hstack([1 - predictions, predictions])
+
+    # Explain a single instance from the test set
+    i = np.random.randint(0, x_test.shape[0])
+    exp = explainer.explain_instance(
+        x_test[i],
+        predict_fn_for_lime,
+        num_features=len(feature_names),
+    )
+
+    if SHOW_PLOTS:
+        plt.figure()
+        exp.as_pyplot_figure()
+        plt.tight_layout()
+        plt.show()
+    else:
+        report_path = os.path.join(REPORTS_PATH, "lime_report.html")
+        exp.save_to_file(report_path)
+        print(f"LIME report saved to {report_path}")
+
+
 def run_mlp_model(
     x_train: tensor_t,
     y_train: tensor_t,
     x_test: tensor_t,
     y_test: tensor_t,
+    feature_names: list[str],
 ) -> EvaluationResult:
     """
     Train and evaluate the baseline multi-layer perceptron classifier.
@@ -303,6 +411,7 @@ def run_mlp_model(
         y_train: Training labels.
         x_test: Testing features.
         y_test: Testing labels.
+        feature_names: The names of the features.
 
     Returns:
         An evaluation result describing the MLP performance.
@@ -332,9 +441,14 @@ def run_mlp_model(
         callbacks=[early_stopping, model_checkpoint],
         verbose=0,
     )
-    loss, accuracy = model.evaluate(x_test, y_test, verbose=0)
+    _, accuracy = model.evaluate(x_test, y_test, verbose=0)  # type: ignore
     predictions = model.predict(x_test, verbose=0)
     y_pred = (predictions.flatten() >= 0.5).astype(int)
+
+    # --- Explainability Analysis ---
+    run_shap_analysis(model, x_train, x_test, feature_names)
+    run_lime_analysis(model, x_train, x_test, y_train, feature_names)
+
     result = evaluate_predictions("MLP", y_test, y_pred, float(np.nan), float(np.nan))
     result.test_accuracy = float(accuracy)
     result.test_weighted_f1 = float(f1_score(y_test, y_pred, average="weighted"))
@@ -346,6 +460,7 @@ def run_logistic_regression_model(
     y_train: tensor_t,
     x_test: tensor_t,
     y_test: tensor_t,
+    feature_names: list[str],
 ) -> EvaluationResult:
     """
     Train and evaluate the logistic regression model.
@@ -355,6 +470,7 @@ def run_logistic_regression_model(
         y_train: Training labels.
         x_test: Testing features.
         y_test: Testing labels.
+        feature_names: The names of the features.
 
     Returns:
         The evaluation summary for logistic regression.
@@ -370,6 +486,7 @@ def run_random_forest_model(
     y_train: tensor_t,
     x_test: tensor_t,
     y_test: tensor_t,
+    feature_names: list[str],
 ) -> EvaluationResult:
     """
     Train and evaluate the random forest model.
@@ -379,6 +496,7 @@ def run_random_forest_model(
         y_train: Training labels.
         x_test: Testing features.
         y_test: Testing labels.
+        feature_names: The names of the features.
 
     Returns:
         The evaluation summary for random forest classification.
@@ -394,6 +512,7 @@ def run_gradient_boosting_model(
     y_train: tensor_t,
     x_test: tensor_t,
     y_test: tensor_t,
+    feature_names: list[str],
 ) -> EvaluationResult:
     """
     Train and evaluate the gradient boosting model.
@@ -403,6 +522,7 @@ def run_gradient_boosting_model(
         y_train: Training labels.
         x_test: Testing features.
         y_test: Testing labels.
+        feature_names: The names of the features.
 
     Returns:
         The evaluation summary for gradient boosting classification.
@@ -418,6 +538,7 @@ def run_svm_model(
     y_train: tensor_t,
     x_test: tensor_t,
     y_test: tensor_t,
+    feature_names: list[str],
 ) -> EvaluationResult:
     """
     Train and evaluate the support vector machine model.
@@ -427,6 +548,7 @@ def run_svm_model(
         y_train: Training labels.
         x_test: Testing features.
         y_test: Testing labels.
+        feature_names: The names of the features.
 
     Returns:
         The evaluation summary for SVM classification.
@@ -486,11 +608,14 @@ def main() -> None:
     """
     Main script execution function selecting, training, and evaluating models.
     """
-    x_train, y_train, x_test, y_test = load_data(DATA_PATH)
+    # --- Create reports directory ---
+    os.makedirs(REPORTS_PATH, exist_ok=True)
+
+    x_train, y_train, x_test, y_test, feature_names = load_data(DATA_PATH)
     model_registry = get_model_registry()
     for model_key in get_model_registry().keys():
         runner = model_registry[model_key]
-        result = runner(x_train, y_train, x_test, y_test)
+        result = runner(x_train, y_train, x_test, y_test, feature_names)
         display_evaluation_result(result)
 
 
