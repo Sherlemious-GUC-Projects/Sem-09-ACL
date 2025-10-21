@@ -201,12 +201,12 @@ def process_spatial_data(
         .all()
     )
     ## 3. assert the one-to-one mapping ##
-    assert Start_is_one_to_one, (
-        "Start_Code encoding is not one-to-one with the Start code leading to information loss"
-    )
-    assert End_is_one_to_one, (
-        "End_Code encoding is not one-to-one with the End code leading to information loss"
-    )
+    assert (
+        Start_is_one_to_one
+    ), "Start_Code encoding is not one-to-one with the Start code leading to information loss"
+    assert (
+        End_is_one_to_one
+    ), "End_Code encoding is not one-to-one with the End code leading to information loss"
 
     ### drop any remaining object columns ###
     object_cols = df.select_dtypes(include=["object"]).columns
@@ -256,6 +256,12 @@ def main() -> int:
     ### concatenate the dataframes ###
     df_final: pd.DataFrame = pd.concat([df_passenger, df_spatial], axis=1)
     df_final = df_final.astype(float)
+
+    ### make the label binary ###
+    df_final["Rating"] = (df_final["Rating"] >= 5).astype(int)
+
+    ### drop any rows with NaN values ###
+    df_final.dropna(inplace=True)
 
     ### write the final dataframe to a csv file ###
     df_final.to_csv(output_path, index=False)
