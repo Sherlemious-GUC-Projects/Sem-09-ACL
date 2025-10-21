@@ -17,3 +17,10 @@ dependencies = [
     "types-tqdm>=4.67.0.20250809",
     "vadersentiment>=3.3.2",
 ]
+
+[tool.mypy]
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "sklearn.*"
+ignore_missing_imports = true
