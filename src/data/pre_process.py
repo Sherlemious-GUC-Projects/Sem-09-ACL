@@ -4,13 +4,12 @@ from tqdm import tqdm
 import pandas as pd
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from explore_util import (
+from util import (
     load_data,
     get_sentiment_scores,
     load_airports_csv,
     build_spatial_backend,
     map_dataframe_coords_to_airport,
-    COLS,
     COLS_PASSENGER,
     COLS_SPATIAL,
 )
@@ -217,9 +216,22 @@ def process_spatial_data(
 
 
 def main() -> int:
-    """"""
+    """
+    This is the main function that orchestrates the data pre-processing.
+        - Loads the raw data from a CSV file.
+        - Drops records with missing coordinates.
+        - Processes passenger-related data.
+        - Processes flight-related data.
+        - Concatenates the processed dataframes.
+        - Saves the final processed dataframe to a CSV file.
+    Args:
+        None
+    Returns:
+        int: Exit code (0 for success).
+    """
     ### init some stuff ###
     input_path: str = "./dbs/raw/db.csv"
+    output_path: str = "./dbs/interm/db.csv"
 
     ### load the data ###
     df: pd.DataFrame = load_data(input_path)
@@ -235,9 +247,6 @@ def main() -> int:
         inplace=True,
     )
 
-    ### ~~~ BETA ~~~ ###
-    df = df[:3]
-
     ### process passenger data ###
     df_passenger: pd.DataFrame = process_passenger_data(df[COLS_PASSENGER])
 
@@ -248,20 +257,15 @@ def main() -> int:
     df_final: pd.DataFrame = pd.concat([df_passenger, df_spatial], axis=1)
     df_final = df_final.astype(float)
 
-    ### ~~~ BETA ~~~ ###
-    """
-    Notes: start location and end location AND LAYOVER can NOT be missing if the route is present and vs
-    therefore any string manipulation on the route column should be unnecessary
-    Finally that means that the routes is irrelevant and should be dropped
-    Another note i know for fact that if a lat was given ill always have the long for it.
-    The missing values count for the various columns are as follows:
-    1) Start_Address: 1.67%
-    2) End_Address: 2.76%
-    3) Start_Location: 21.42%
-    4) End_Location: 21.42%
-    5) Start_Latitude: 1.67%
-    6) End_Latitude: 2.76%
-    """
+    ### make the label binary ###
+    df_final["Rating"] = (df_final["Rating"] >= 5).astype(int)
+
+    ### drop any rows with NaN values ###
+    df_final.dropna(inplace=True)
+
+    ### write the final dataframe to a csv file ###
+    df_final.to_csv(output_path, index=False)
+
     return 0
 
 

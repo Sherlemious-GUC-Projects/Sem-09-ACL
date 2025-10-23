@@ -2,11 +2,9 @@
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer  # type: ignore[import-untyped]
 from typing import Iterable, Optional, Tuple, TypedDict
 from sklearn.neighbors import BallTree  # type: ignore[import-untyped]
-from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
 import pathlib
-import json
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
 # None
