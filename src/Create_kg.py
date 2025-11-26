@@ -31,16 +31,16 @@ def load_config(path: str = "./config.txt") -> Config:
         config_dict[key] = value
 
     ### insure all keys are present ###
-    required_keys = {"uri", "username", "password"}
+    required_keys = {"URI", "USERNAME", "PASSWORD"}
     if not required_keys.issubset(config_dict.keys()):
         missing_keys = required_keys - config_dict.keys()
         raise KeyError(f"Missing keys in config file: {missing_keys}")
 
     ### create Config instance ###
     config: Config = Config(
-        uri=config_dict["uri"],
-        username=config_dict["username"],
-        password=config_dict["password"],
+        uri=config_dict["URI"],
+        username=config_dict["USERNAME"],
+        password=config_dict["PASSWORD"],
     )
 
     return config
@@ -48,6 +48,9 @@ def load_config(path: str = "./config.txt") -> Config:
 
 def main() -> int:
     """ """
+    ### load config ###
+    config = load_config()
+    print(config)
     return 0
 
 
