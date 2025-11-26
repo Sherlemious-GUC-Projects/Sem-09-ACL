@@ -1,5 +1,7 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
 from dataclasses import dataclass
+import pandas as pd
+import os
 
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
@@ -19,7 +21,16 @@ class Config:
 
 
 def load_config(path: str = "./config.txt") -> Config:
-    """"""
+    """
+    Load configuration from a file, returning a Config instance.
+    Args:
+        path (str): Path to the configuration file.
+    Returns:
+        Config: An instance of the Config dataclass with loaded
+                configuration values.
+    Throws:
+        KeyError: If any required keys are missing in the config file.
+    """
     ### read config file ###
     with open(path, "r") as file:
         lines = file.readlines()
@@ -46,11 +57,35 @@ def load_config(path: str = "./config.txt") -> Config:
     return config
 
 
+def load_data(path: str = "./dbs/Airline_surveys_sample.csv") -> pd.DataFrame:
+    """
+    Load data from a CSV file into a pandas DataFrame.
+    Args:
+        path (str): Path to the CSV file.
+    Returns:
+        pd.DataFrame: DataFrame containing the loaded data.
+    Throws:
+        FileNotFoundError: If the specified file does not exist.
+    """
+    ### insure file exists ###
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Data file not found at path: {path}")
+
+    ### load data ###
+    df: pd.DataFrame = pd.read_csv(path)
+
+    return df
+
+
 def main() -> int:
     """ """
     ### load config ###
     config = load_config()
-    print(config)
+
+    ### load data ###
+    df = load_data()
+
+    print(df.head())
     return 0
 
 
