@@ -31,3 +31,31 @@ def query_1(session) -> List[Dict]:
     ]
 
     return rows
+
+
+def query_2(session) -> List[Dict]:
+    """
+    Identify the top 10 Flights with the most passenger feedback.
+    Returns:
+        List[Dict]: Each dict contains flight_id and feedback_count.
+    """
+    result = session.run(
+        """
+        MATCH (:Passenger)-[:TOOK]->(j:Journey)-[:ON]->(f:Flight)
+        WITH f.flight_number AS flight_id,
+             count(j) AS feedback_count
+        RETURN flight_id, feedback_count
+        ORDER BY feedback_count DESC
+        LIMIT 10
+        """
+    )
+
+    rows: List[Dict] = [
+        {
+            "flight_id": record["flight_id"],
+            "feedback_count": record["feedback_count"],
+        }
+        for record in result
+    ]
+
+    return rows

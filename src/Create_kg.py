@@ -24,6 +24,7 @@ from load import (
 )
 from query import (
     query_1,
+    query_2,
 )
 
 
@@ -150,13 +151,17 @@ def main() -> int:
     try:
         with driver.session() as session:
             results_1 = query_1(session)
+            results_2 = query_2(session)
     finally:
         driver.close()
 
     ### validate results ###
     expected_1 = load_query_answer(1)
-    print("\nQuery 1 Match:", results_1 == expected_1)
-
+    expected_2 = load_query_answer(2)
+    print("Query 1 Match:", results_1 == expected_1)
+    print("Query 2 Match:", results_2 == expected_2)
+    pprint.pprint({"Results 1": results_1, "Expected 1": expected_1})
+    pprint.pprint({"Results 2": results_2, "Expected 2": expected_2})
     return 0
 
 
