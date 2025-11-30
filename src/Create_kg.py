@@ -1,12 +1,9 @@
 ### ~~~ GLOBALS IMPORTS ~~~ ###
 from neo4j import GraphDatabase
+import pprint
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from util import (
-    Config,
-    load_config,
-    load_data,
-)
+from util import Config, load_config, load_data, load_query_answer
 from construct import (
     construct_passanger_data,
     construct_journey_data,
@@ -24,6 +21,9 @@ from load import (
     load_passenger_journey_rels,
     load_journey_flight_rels,
     load_flight_airport_rels,
+)
+from query import (
+    query_1,
 )
 
 
@@ -142,7 +142,20 @@ def main() -> int:
         int: Status code.
     """
     ### load data ###
-    loader()
+    # loader()
+
+    ### query data ###
+    config = load_config()
+    driver = create_driver(config)
+    try:
+        with driver.session() as session:
+            results_1 = query_1(session)
+    finally:
+        driver.close()
+
+    ### validate results ###
+    expected_1 = load_query_answer(1)
+    print("\nQuery 1 Match:", results_1 == expected_1)
 
     return 0
 

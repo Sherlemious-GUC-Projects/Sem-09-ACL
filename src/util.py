@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Sequence
 import pandas as pd
+import json as js
 import os
 
 
@@ -82,3 +83,26 @@ def chunk_rows(rows: Sequence[Dict], chunk_size: int = 1_000) -> Iterable[List[D
     for start in range(0, len(rows), chunk_size):
         end = start + chunk_size
         yield list(rows[start:end])
+
+
+def load_query_answer(id: int) -> List[Dict]:
+    """
+    Load the expected answer for a given query from a JSON file.
+    Args:
+        id (int): The query ID.
+    Returns:
+        List[Dict]: The expected answer as a list of dictionaries.
+    Throws:
+        FileNotFoundError: If the expected answer file does not exist.
+    """
+    path = f"./dbs/query_{id}.json"
+
+    ### insure file exists ###
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Expected answer file not found at path: {path}")
+
+    ### load expected answer ###
+    with open(path, "r", encoding="utf-8-sig") as file:
+        answer: List[Dict] = js.load(file)
+
+    return answer
