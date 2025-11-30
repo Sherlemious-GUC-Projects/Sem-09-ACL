@@ -145,6 +145,10 @@ def main() -> int:
 
     ### setup ###
     querys: list[int] = list(query_mapper.keys())
+    score_query, querys = (
+        querys[-1],
+        querys[:-1],
+    )  # exclude the last query as its the score
     results: dict[int, List[Dict]] = {}
     expecteds: dict[int, List[Dict]] = {}
     matchs: dict[int, bool] = {}
@@ -157,6 +161,7 @@ def main() -> int:
             for q in querys:
                 result = query_mapper[q](session)
                 results[q] = result
+            score_result = query_mapper[score_query](session)
     finally:
         driver.close()
 
@@ -170,6 +175,15 @@ def main() -> int:
             pprint.pprint({"Results": results[q], "Expected": expecteds[q]})
         else:
             print(f"Query {q} results match expected.")
+
+    expected_score = 1856
+    actual_score = score_result[0]["satisfied_count"]
+    if actual_score != expected_score:
+        print(
+            f"Score does not match expected: Actual Score = {actual_score}, Expected Score = {expected_score}"
+        )
+    else:
+        print(f"Score matches expected: {actual_score}")
 
     return 0
 

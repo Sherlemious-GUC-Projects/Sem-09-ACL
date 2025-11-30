@@ -146,10 +146,69 @@ def query_5(session) -> List[Dict]:
     return rows
 
 
+def query_6(session) -> List[Dict]:
+    """
+    Count passengers whose overall satisfaction score exceeds 3.
+    Returns:
+        List[Dict]: Single dict with key 'satisfied_count'.
+    """
+    result = session.run(
+        """
+        MATCH (p:Passenger)-[:TOOK]->(j:Journey)
+        WITH p,
+             j.food_satisfaction_score AS food,
+             j.arrival_delay_minutes AS arrival_delay_minutes,
+             j.number_of_legs AS number_of_legs,
+             j.actual_flown_miles AS actual_flown_miles
+        WITH p,
+             food,
+             CASE
+               WHEN round(abs(arrival_delay_minutes) / 20.0, 1) > 5 THEN 0.0
+               WHEN round(abs(arrival_delay_minutes) / 20.0, 1) < 0 THEN 5.0
+               ELSE round(5 - round(abs(arrival_delay_minutes) / 20.0, 1), 1)
+             END AS delay_score,
+             CASE
+               WHEN round(number_of_legs * 1.5, 1) > 5 THEN 0.0
+               WHEN round(number_of_legs * 1.5, 1) < 0 THEN 5.0
+               ELSE round(5 - round(number_of_legs * 1.5, 1), 1)
+             END AS legs_score,
+             CASE
+               WHEN round(actual_flown_miles / 3000.0, 1) > 5 THEN 0.0
+               WHEN round(actual_flown_miles / 3000.0, 1) < 0 THEN 5.0
+               ELSE round(5 - round(actual_flown_miles / 3000.0, 1), 1)
+             END AS miles_score
+        WITH p,
+             food,
+             delay_score,
+             legs_score,
+             miles_score,
+             round(
+               (0.5 * food) +
+               (0.35 * delay_score) +
+               (0.1 * legs_score) +
+               (0.05 * miles_score),
+               1
+             ) AS overall_satisfaction_score
+        WHERE overall_satisfaction_score > 3
+        RETURN count(DISTINCT p) AS satisfied_count
+        """
+    )
+
+    rows: List[Dict] = [
+        {
+            "satisfied_count": record["satisfied_count"],
+        }
+        for record in result
+    ]
+
+    return rows
+
+
 query_mapper: Dict[int, Callable] = {
     1: query_1,
     2: query_2,
     3: query_3,
     4: query_4,
     5: query_5,
+    6: query_6,
 }
