@@ -151,4 +151,5 @@ query_mapper: Dict[int, Callable] = {
     2: query_2,
     3: query_3,
     4: query_4,
+    5: query_5,
 }
