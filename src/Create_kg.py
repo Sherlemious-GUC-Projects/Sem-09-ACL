@@ -144,7 +144,7 @@ def main() -> int:
     # loader()
 
     ### setup ###
-    querys: list[int] = [1, 2, 3]
+    querys: list[int] = list(query_mapper.keys())
     results: dict[int, List[Dict]] = {}
     expecteds: dict[int, List[Dict]] = {}
     matchs: dict[int, bool] = {}
