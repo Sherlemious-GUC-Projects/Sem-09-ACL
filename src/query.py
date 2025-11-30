@@ -1,5 +1,5 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
-from typing import List, Dict
+from typing import List, Dict, Callable
 
 
 def query_1(session) -> List[Dict]:
@@ -59,3 +59,40 @@ def query_2(session) -> List[Dict]:
     ]
 
     return rows
+
+
+def query_3(session) -> List[Dict]:
+    """
+    Calculate average food satisfaction for multi-leg journeys grouped by generation.
+    Returns:
+        List[Dict]: Each dict contains generation, multi_leg_count, avg_score.
+    """
+    result = session.run(
+        """
+        MATCH (p:Passenger)-[:TOOK]->(j:Journey)
+        WHERE j.number_of_legs > 1
+        WITH p.generation AS generation, j
+        RETURN generation,
+               count(j) AS multi_leg_count,
+               avg(j.food_satisfaction_score) AS avg_score
+        ORDER BY multi_leg_count DESC
+        """
+    )
+
+    rows: List[Dict] = [
+        {
+            "generation": record["generation"],
+            "multi_leg_count": record["multi_leg_count"],
+            "avg_score": record["avg_score"],
+        }
+        for record in result
+    ]
+
+    return rows
+
+
+query_mapper: Dict[int, Callable] = {
+    1: query_1,
+    2: query_2,
+    3: query_3,
+}

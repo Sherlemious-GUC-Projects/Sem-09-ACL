@@ -1,4 +1,5 @@
 ### ~~~ GLOBALS IMPORTS ~~~ ###
+from typing import List, Dict
 from neo4j import GraphDatabase
 import pprint
 
@@ -22,10 +23,7 @@ from load import (
     load_journey_flight_rels,
     load_flight_airport_rels,
 )
-from query import (
-    query_1,
-    query_2,
-)
+from query import query_mapper
 
 
 def apply_constraints(session) -> None:
@@ -145,23 +143,34 @@ def main() -> int:
     ### load data ###
     # loader()
 
+    ### setup ###
+    querys: list[int] = [1, 2, 3]
+    results: dict[int, List[Dict]] = {}
+    expecteds: dict[int, List[Dict]] = {}
+    matchs: dict[int, bool] = {}
+
     ### query data ###
     config = load_config()
     driver = create_driver(config)
     try:
         with driver.session() as session:
-            results_1 = query_1(session)
-            results_2 = query_2(session)
+            for q in querys:
+                result = query_mapper[q](session)
+                results[q] = result
     finally:
         driver.close()
 
     ### validate results ###
-    expected_1 = load_query_answer(1)
-    expected_2 = load_query_answer(2)
-    print("Query 1 Match:", results_1 == expected_1)
-    print("Query 2 Match:", results_2 == expected_2)
-    pprint.pprint({"Results 1": results_1, "Expected 1": expected_1})
-    pprint.pprint({"Results 2": results_2, "Expected 2": expected_2})
+    for q in querys:
+        expecteds[q] = load_query_answer(q)
+        matchs[q] = results[q] == expecteds[q]
+    for q in querys:
+        if results[q] != expecteds[q]:
+            print(f"Query {q} results do not match expected:")
+            pprint.pprint({"Results": results[q], "Expected": expecteds[q]})
+        else:
+            print(f"Query {q} results match expected.")
+
     return 0
 
 
