@@ -1,0 +1,52 @@
+
+//1. Query 1
+
+MATCH (f:Flight)-[:DEPARTS_FROM]->(o:Airport)
+MATCH (f)-[:ARRIVES_AT]->(d:Airport)
+WITH o.station_code AS origin,
+     d.station_code AS destination,
+     count(f) AS flight_count
+RETURN origin, destination, flight_count
+ORDER BY flight_count DESC
+LIMIT 5
+
+
+//2. Query 2
+
+MATCH (:Passenger)-[:TOOK]->(j:Journey)-[:ON]->(f:Flight)
+WITH f.flight_number AS flight_id,
+     count(j) AS feedback_count
+RETURN flight_id, feedback_count
+ORDER BY feedback_count DESC
+LIMIT 10
+
+
+//3. Query 3
+
+MATCH (p:Passenger)-[:TOOK]->(j:Journey)
+WHERE j.number_of_legs > 1
+WITH p.generation AS generation, j
+RETURN generation,
+       count(j) AS multi_leg_count,
+       avg(j.food_satisfaction_score) AS avg_score
+ORDER BY multi_leg_count DESC
+
+
+//4. Query 4
+
+MATCH (j:Journey)-[:ON]->(f:Flight)
+WITH f.flight_number AS flight_id,
+     avg(toFloat(j.arrival_delay_minutes)) AS avg_arrival_delay
+RETURN flight_id, avg_arrival_delay
+ORDER BY avg_arrival_delay ASC
+LIMIT 10
+
+
+//5. Query 5
+
+MATCH (j:Journey)-[:ON]->(f:Flight)
+WITH f.flight_number AS flight_id,
+     avg(toFloat(j.arrival_delay_minutes)) AS avg_arrival_delay
+RETURN flight_id, avg_arrival_delay
+ORDER BY avg_arrival_delay ASC
+LIMIT 10
