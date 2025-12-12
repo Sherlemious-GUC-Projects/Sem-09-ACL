@@ -36,3 +36,12 @@ class ContextChunk:
     score: float
     source: RetrievalSource
     metadata: Dict
+
+
+def pretty_print(object: Entity | ProcessedQuery | ContextChunk) -> None:
+    """"""
+    attrs = vars(object)
+    print(f"{object.__class__.__name__}:")
+    for key, value in attrs.items():
+        print(f"  {key}: {value}")
+    print()
