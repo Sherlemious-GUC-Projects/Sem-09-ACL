@@ -1,18 +1,12 @@
-"""
-Shared utilities and base data structures for the Ingestion/Extraction module.
-This module handles data loading and common pure functions used by specific processors.
-"""
-
-import csv
-from dataclasses import dataclass
+### ~~~ GLOBAL IMPORTS ~~~ ###
 from typing import List, FrozenSet
+from dataclasses import dataclass
 
+### ~~~ LOCAL IMPORTS ~~~ ###
 from src.utils.types import IntentType, Entity
 
 
-# --- Data Structures for Reference ---
-
-
+### ~~~ TYPE DEFINITIONS ~~~ ###
 @dataclass(frozen=True)
 class ReferenceData:
     """
@@ -24,56 +18,12 @@ class ReferenceData:
     aircraft_models: FrozenSet[str]
 
 
-# --- Pure Functions: I/O & Loading ---
-
-
-def load_reference_data(csv_path: str) -> ReferenceData:
-    """
-    Reads the CSV once and produces an immutable reference structure.
-
-    Args:
-        csv_path: Path to the airline survey CSV file.
-
-    Returns:
-        ReferenceData: Populated sets of valid airports and aircraft.
-    """
-    airports = set()
-    aircraft = set()
-
-    try:
-        with open(csv_path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                # We collect both origin and destination to build the full airport universe
-                if row.get("origin_station_code"):
-                    airports.add(row["origin_station_code"].upper())
-                if row.get("destination_station_code"):
-                    airports.add(row["destination_station_code"].upper())
-
-                # Collect unique aircraft types for validation
-                if row.get("fleet_type_description"):
-                    aircraft.add(row["fleet_type_description"])
-
-    except FileNotFoundError:
-        print(
-            f"Warning: Data file not found at {csv_path}. Reference data will be empty."
-        )
-
-    return ReferenceData(
-        airports=frozenset(airports), aircraft_models=frozenset(aircraft)
-    )
-
-
-# --- Pure Functions: Text Processing ---
-
-
+### ~~~ FUNCTIONS ~~~ ###
 def clean_text(text: str) -> str:
     """
     Standardizes input text for processing.
-
     Args:
         text: Raw user input.
-
     Returns:
         str: Uppercase, stripped text.
     """
@@ -83,10 +33,8 @@ def clean_text(text: str) -> str:
 def extract_metrics(text: str) -> List[Entity]:
     """
     Maps keywords to known metric types using simple string matching.
-
     Args:
         text: The raw or cleaned user query.
-
     Returns:
         List[Entity]: Found metric entities.
     """
@@ -105,9 +53,6 @@ def extract_metrics(text: str) -> List[Entity]:
         metrics.append(Entity(entity_type="METRIC", value="actual_flown_miles"))
 
     return metrics
-
-
-# --- Pure Functions: Intent Classification ---
 
 
 def determine_intent(text: str, entities: List[Entity]) -> IntentType:
