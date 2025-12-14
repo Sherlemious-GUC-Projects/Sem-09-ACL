@@ -58,6 +58,114 @@ TEMPLATE_MAP = {
         LIMIT 5
     """,
 
+    IntentType.LOYALTY_ANALYSIS: """
+        MATCH (p:Passenger)-[:TOOK]->(j:Journey)
+        WHERE (p.loyalty_program_level = $loyalty_level OR $loyalty_level IS NULL)
+        WITH p.loyalty_program_level AS loyalty_level, 
+             avg(j.actual_flown_miles) AS avg_miles,
+             count(DISTINCT p) AS passenger_count
+        RETURN 
+            "Loyalty level " + loyalty_level + " passengers fly an average of " + 
+            toString(round(avg_miles, 1)) + " miles (" + toString(passenger_count) + " passengers)." AS text,
+            loyalty_level + "_loyalty" AS id,
+            {loyalty_level: loyalty_level, avg_miles: avg_miles, passengers: passenger_count} AS metadata
+        ORDER BY avg_miles DESC
+        LIMIT 5
+    """,
+
+    IntentType.DEMOGRAPHIC_INSIGHTS: """
+        MATCH (p:Passenger)-[:TOOK]->(j:Journey)
+        WHERE (p.generation = $generation OR $generation IS NULL)
+        WITH p.generation AS generation,
+             count(j) AS journey_count,
+             avg(j.food_satisfaction_score) AS avg_food,
+             avg(j.arrival_delay_minutes) AS avg_delay
+        RETURN 
+            "Generation " + generation + ": " + toString(journey_count) + " journeys, " +
+            "avg food score " + toString(round(avg_food, 1)) + ", avg delay " + 
+            toString(round(avg_delay, 1)) + " min." AS text,
+            generation + "_demographic" AS id,
+            {generation: generation, journeys: journey_count, avg_food: avg_food, avg_delay: avg_delay} AS metadata
+        ORDER BY journey_count DESC
+        LIMIT 5
+    """,
+
+    IntentType.FEEDBACK_VOLUME: """
+        MATCH (p:Passenger)-[:TOOK]->(j:Journey)-[:ON]->(f:Flight)
+        WHERE (f.flight_number = $flight_number OR $flight_number IS NULL)
+        WITH f.flight_number AS flight_id, count(j) AS feedback_count
+        RETURN 
+            "Flight " + toString(flight_id) + " has " + toString(feedback_count) + " feedback entries." AS text,
+            toString(flight_id) + "_feedback" AS id,
+            {flight: flight_id, feedback_count: feedback_count} AS metadata
+        ORDER BY feedback_count DESC
+        LIMIT 10
+    """,
+
+    IntentType.FLEET_PERFORMANCE: """
+        MATCH (j:Journey)-[:ON]->(f:Flight)
+        WHERE (f.fleet_type_description = $aircraft OR $aircraft IS NULL)
+        WITH f.fleet_type_description AS fleet_type,
+             avg(j.arrival_delay_minutes) AS avg_delay,
+             avg(j.food_satisfaction_score) AS avg_food,
+             count(j) AS journey_count
+        RETURN 
+            "Fleet " + fleet_type + ": avg delay " + toString(round(avg_delay, 1)) + " min, " +
+            "avg food score " + toString(round(avg_food, 1)) + " (" + toString(journey_count) + " journeys)." AS text,
+            fleet_type + "_fleet" AS id,
+            {fleet: fleet_type, avg_delay: avg_delay, avg_food: avg_food, journeys: journey_count} AS metadata
+        ORDER BY journey_count DESC
+        LIMIT 5
+    """,
+
+    IntentType.CABIN_CLASS_STATS: """
+        MATCH (p:Passenger)-[:TOOK]->(j:Journey)
+        WHERE (j.passenger_class = $cabin_class OR $cabin_class IS NULL)
+        WITH j.passenger_class AS cabin_class,
+             count(j) AS journey_count,
+             avg(j.food_satisfaction_score) AS avg_food,
+             avg(j.arrival_delay_minutes) AS avg_delay
+        RETURN 
+            "Cabin class " + cabin_class + ": " + toString(journey_count) + " journeys, " +
+            "avg food score " + toString(round(avg_food, 1)) + ", avg delay " + 
+            toString(round(avg_delay, 1)) + " min." AS text,
+            cabin_class + "_cabin" AS id,
+            {cabin_class: cabin_class, journeys: journey_count, avg_food: avg_food, avg_delay: avg_delay} AS metadata
+        ORDER BY journey_count DESC
+        LIMIT 5
+    """,
+
+    IntentType.CONNECTION_STATS: """
+        MATCH (p:Passenger)-[:TOOK]->(j:Journey)
+        WITH CASE WHEN j.number_of_legs > 1 THEN "Multi-leg" ELSE "Direct" END AS connection_type,
+             count(j) AS journey_count,
+             avg(j.arrival_delay_minutes) AS avg_delay,
+             avg(j.food_satisfaction_score) AS avg_food
+        RETURN 
+            connection_type + " journeys: " + toString(journey_count) + " total, " +
+            "avg delay " + toString(round(avg_delay, 1)) + " min, " +
+            "avg food score " + toString(round(avg_food, 1)) + "." AS text,
+            connection_type + "_connection" AS id,
+            {type: connection_type, journeys: journey_count, avg_delay: avg_delay, avg_food: avg_food} AS metadata
+        ORDER BY journey_count DESC
+    """,
+
+    IntentType.AIRPORT_STATS: """
+        MATCH (f:Flight)-[:DEPARTS_FROM]->(a:Airport)
+        MATCH (j:Journey)-[:ON]->(f)
+        WHERE (a.station_code = $origin OR $origin IS NULL)
+        WITH a.station_code AS airport,
+             count(DISTINCT f) AS flight_count,
+             avg(j.arrival_delay_minutes) AS avg_delay
+        RETURN 
+            "Airport " + airport + ": " + toString(flight_count) + " departing flights, " +
+            "avg delay " + toString(round(avg_delay, 1)) + " min." AS text,
+            airport + "_airport" AS id,
+            {airport: airport, flights: flight_count, avg_delay: avg_delay} AS metadata
+        ORDER BY flight_count DESC
+        LIMIT 5
+    """,
+
     # Fallback for unknown intents
     IntentType.UNKNOWN: ""
 }
@@ -83,7 +191,9 @@ def query_graph_cypher(processed_input: ProcessedQuery) -> List[ContextChunk]:
         "flight_number": None,
         "aircraft": None,
         "generation": None,
-        "metric": None
+        "metric": None,
+        "loyalty_level": None,
+        "cabin_class": None
     }
     
     for entity in processed_input.entities:
@@ -99,6 +209,10 @@ def query_graph_cypher(processed_input: ProcessedQuery) -> List[ContextChunk]:
             params["aircraft"] = entity.value
         elif entity.entity_type == "GENERATION":
             params["generation"] = entity.value
+        elif entity.entity_type == "LOYALTY_LEVEL":
+            params["loyalty_level"] = entity.value
+        elif entity.entity_type == "CABIN_CLASS":
+            params["cabin_class"] = entity.value
 
     # 2. Get the Cypher template
     query = TEMPLATE_MAP[processed_input.intent]

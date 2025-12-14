@@ -38,6 +38,42 @@ def test_delay_analysis():
     for chunk in results[:3]:
         pprint.pprint(chunk)
 
+def test_loyalty_analysis():
+    print("\n--- TEST: Loyalty Analysis ---")
+    query = ProcessedQuery(
+        original_text="How do loyalty members compare in miles flown?",
+        intent=IntentType.LOYALTY_ANALYSIS,
+        entities=[]
+    )
+    results = query_graph_cypher(query)
+    print(f"Found {len(results)} loyalty levels")
+    for chunk in results:
+        pprint.pprint(chunk)
+
+def test_fleet_performance():
+    print("\n--- TEST: Fleet Performance ---")
+    query = ProcessedQuery(
+        original_text="Which aircraft types have the best performance?",
+        intent=IntentType.FLEET_PERFORMANCE,
+        entities=[]
+    )
+    results = query_graph_cypher(query)
+    print(f"Found {len(results)} fleet types")
+    for chunk in results:
+        pprint.pprint(chunk)
+
+def test_connection_stats():
+    print("\n--- TEST: Connection Stats ---")
+    query = ProcessedQuery(
+        original_text="Compare direct vs connecting flights",
+        intent=IntentType.CONNECTION_STATS,
+        entities=[]
+    )
+    results = query_graph_cypher(query)
+    print(f"Found {len(results)} connection types")
+    for chunk in results:
+        pprint.pprint(chunk)
+
 def test_unknown_intent():
     print("\n--- TEST: Unknown Intent ---")
     query = ProcessedQuery(
@@ -52,5 +88,8 @@ if __name__ == "__main__":
     test_flight_search_all()
     test_route_stats()
     test_delay_analysis()
+    test_loyalty_analysis()
+    test_fleet_performance()
+    test_connection_stats()
     test_unknown_intent()
 
