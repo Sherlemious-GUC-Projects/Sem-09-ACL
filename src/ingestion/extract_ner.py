@@ -10,6 +10,7 @@ import re
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
 from src.utils.types import Entity, IntentType
+from src.ingestion.analyise_sentiment import classifier
 
 
 ### ~~~ TYPE DEFINITIONS ~~~ ###
@@ -90,9 +91,10 @@ def extract_ner_candidates(text: str) -> List[str]:
     candidates = []
 
     # Grammar: Noun Phrases often contain our entities.
-    # We capture:
-    # 1. Sequences of Proper Nouns (NNP) and/or Numbers (CD) -> "Boeing 737", "737 Max"
-    grammar = r"NP: {<CD|NNP>+}"
+    # Updated to capture Adjectives (next) and general Nouns (winter)
+    # <JJ>? : Optional Adjective (e.g. "next", "past")
+    # <NN.*|CD>+ : One or more Nouns (proper or common) or Numbers
+    grammar = r"NP: {<JJ>?<NN.*|CD>+}"
     chunk_parser = nltk.RegexpParser(grammar)
     tree = chunk_parser.parse(tags)
 
@@ -106,56 +108,122 @@ def extract_ner_candidates(text: str) -> List[str]:
             token, pos = subtree
 
             # Airport Codes are often 3 letters and ALL CAPS (e.g., JFK, ORD)
-            # We explicitly catch these even if tags are wrong (e.g. JFK tagged as Verb)
             if len(token) == 3 and token.isupper():
                 candidates.append(token)
 
-            # Numbers that didn't chunk might be partial aircraft names (rare but possible)
-            if pos == "CD":
-                candidates.append(token)
-
     return candidates
+
+
+def clean_entity_value(text: str) -> str:
+    """
+    Removes leading/trailing lowercase words from a string.
+    Useful for cleaning candidates like "new A321neo configuration" -> "A321neo".
+    """
+    tokens = text.split()
+    if not tokens:
+        return text
+
+    # Remove from start
+    while tokens and tokens[0].islower() and not tokens[0].isdigit():
+        tokens.pop(0)
+
+    # Remove from end
+    while tokens and tokens[-1].islower() and not tokens[-1].isdigit():
+        tokens.pop()
+
+    if not tokens:
+        return text  # Return original if everything was stripped (safety)
+
+    return " ".join(tokens)
 
 
 def validate_and_map_entities(
     candidates: List[str], ref: ReferenceData
 ) -> List[Entity]:
     """
-    Validates raw candidates against the 'Ground Truth' Reference Data.
-    Maps valid strings to their specific Entity Types (AIRPORT, AIRCRAFT).
+    Validates raw candidates using a Hybrid approach:
+    1. Ground Truth Check (CSV)
+    2. Regex Heuristics (IATA codes)
+    3. Zero-Shot Classification (ML) for OOV entities
     """
     valid_entities = []
+
+    # Allowed lowercase temporal words (whitelist)
+    valid_temporal = {
+        "winter",
+        "summer",
+        "spring",
+        "fall",
+        "year",
+        "month",
+        "week",
+        "day",
+    }
+
+    # Candidate Labels for the Zero-Shot Model
+    labels = ["airport code", "aircraft model", "date", "city", "general text"]
+
     for cand in candidates:
-        # Normalize for comparison
-        clean_cand = cand.strip().upper()
+        # Clean: remove trailing 's (A380's -> A380)
+        clean_cand = cand.strip()
+        if clean_cand.lower().endswith("'s"):
+            clean_cand = clean_cand[:-2]
 
-        # 1. Check Airports (Exact Match)
-        if clean_cand in ref.airports:
-            valid_entities.append(Entity("AIRPORT", clean_cand))
-            continue  # Prioritize explicit airport codes
+        cand_upper = clean_cand.upper()
 
-        # 2. Check Aircraft (Fuzzy/Substring Match)
-        # Aircraft names in text ("737 Max") might match DB ("B737-MAX8") loosely or exactly.
+        # 1. Exact Match Check (Reference Data)
+        if cand_upper in ref.airports:
+            valid_entities.append(Entity("AIRPORT", cand_upper))
+            continue
+
         for model in ref.aircraft_models:
-            model_upper = model.upper()
-
-            # Exact Match
-            if clean_cand == model_upper:
+            if cand_upper == model.upper() or (
+                len(cand_upper) > 3 and cand_upper in model.upper()
+            ):
                 valid_entities.append(Entity("AIRCRAFT", model))
                 break
+        else:
+            # 2. Heuristic: 3-Letter Uppercase Code -> Likely Airport (IATA)
+            # (Solves LHR, ORD, CDG missing from CSV)
+            if re.fullmatch(r"[A-Z]{3}", clean_cand):
+                valid_entities.append(Entity("AIRPORT", clean_cand))
+                continue
 
-            # Substring Logic:
-            # If candidate is "737 Max" and DB has "B737-MAX8", it's hard to match without complex rules.
-            # But if DB has "737 Max" and text has "737 Max", it matches.
-            # If text has "Boeing 777" and DB has "B777-200", we might miss it with strict equality.
-            # For this exercise, we check if the candidate *contains* key parts of the model or vice versa?
-            # Safer: Check if candidate is a substring of a known model?
-            # e.g. Candidate "ERJ-175" (extracted as chunk) matches "ERJ-175" in DB.
+            # 3. Heuristic: Noise Filter
+            # Drop lowercase words unless they contain whitelisted temporal terms
+            is_title_or_upper = clean_cand[0].isupper() or any(
+                c.isupper() for c in clean_cand
+            )
+            is_digit = any(c.isdigit() for c in clean_cand)
 
-            # We assume the user asks for things mostly as they appear or with slight variation.
-            if clean_cand in model_upper and len(clean_cand) > 3:
-                valid_entities.append(Entity("AIRCRAFT", model))
-                break
+            # Check if any token in the candidate is a valid temporal word
+            cand_lower_tokens = set(clean_cand.lower().split())
+            is_valid_temporal = not cand_lower_tokens.isdisjoint(valid_temporal)
+
+            if not (is_title_or_upper or is_digit or is_valid_temporal):
+                continue
+
+            # 4. Zero-Shot Classification (ML)
+            try:
+                result = classifier(clean_cand, candidate_labels=labels)
+                top_label = result["labels"][0]  # type: ignore
+                score = result["scores"][0]  # type: ignore
+
+                if score > 0.6:
+                    if top_label == "airport code":
+                        # Clean to remove noise if any
+                        cleaned = clean_entity_value(clean_cand)
+                        valid_entities.append(Entity("AIRPORT", cleaned))
+                    elif top_label == "aircraft model":
+                        # Clean "new A321neo configuration" -> "A321neo"
+                        cleaned = clean_entity_value(clean_cand)
+                        valid_entities.append(Entity("AIRCRAFT", cleaned))
+                    elif top_label == "date":
+                        # Do NOT clean dates (we need "past year")
+                        valid_entities.append(Entity("DATE", clean_cand))
+                    # 'city' and 'general text' are intentionally dropped
+            except Exception:
+                pass
 
     return valid_entities
 
@@ -226,8 +294,4 @@ def extract_ner(raw_query: str, ref_data: ReferenceData) -> list[Entity]:
 
 
 if __name__ == "__main__":
-    ...
-#    __   _,_ /_ __,
-#  _(_/__(_/_/_)(_/(_
-#   _/_
-#  (/
+    pass
