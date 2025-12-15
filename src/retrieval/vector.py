@@ -1,29 +1,35 @@
-import os
-import pandas as pd
-import chromadb
-from typing import List, Union, Optional
-from dataclasses import asdict
-
-from langchain_chroma import Chroma
-from langchain_ollama import OllamaEmbeddings
+### ~~~ GLOBAL IMPORTS ~~~ ###
 from langchain_community.embeddings import HuggingFaceEmbeddings
+from typing import Any, Dict, List, Optional, Union
 from langchain_core.embeddings import Embeddings
 from langchain_core.documents import Document
+from langchain_ollama import OllamaEmbeddings
+from langchain_chroma import Chroma
+from dataclasses import asdict
+import pandas as pd
+import chromadb
+import os
 
-from src.utils.types import ContextChunk, ProcessedQuery, RetrievalSource, Entity
-from src.utils.constant import CSV_PATH
+### ~~~ LOCAL IMPORTS ~~~ ###
+from src.utils.types import ContextChunk, Entity, ProcessedQuery, RetrievalSource
 from src.retrieval.util import load_data
+from src.utils.constant import CSV_PATH
 
-# ~~~ CONFIGURATION ~~~
+### ~~~ STATE DEFINITIONS ~~~ ###
 VECTOR_DB_PATH = "./chroma_db"
 COLLECTION_NAME = "airline_reviews"
-USE_OLLAMA = False  # Set to True to use Ollama, False for HuggingFace (local)
+USE_OLLAMA = False
 
 
-# ~~~ EMBEDDING SETUP ~~~
+### ~~~ FUNCTION DEFINITIONS ~~~ ###
 def get_embedding_model(use_ollama: bool = USE_OLLAMA) -> Embeddings:
     """
     Returns the configured embedding model.
+    Args:
+        use_ollama: Boolean flag to determine whether to use Ollama embeddings.
+                    Defaults to the global USE_OLLAMA constant.
+    Returns:
+        An instance of an Embeddings model (OllamaEmbeddings or HuggingFaceEmbeddings).
     """
     if use_ollama:
         return OllamaEmbeddings(model="all-minilm")
@@ -32,12 +38,15 @@ def get_embedding_model(use_ollama: bool = USE_OLLAMA) -> Embeddings:
         return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 
-# ~~~ DATA INGESTION ~~~
 def _format_record(row: pd.Series) -> str:
     """
     Formats a CSV row into the target sentence structure.
     Template:
     "A {loyalty} passenger on flight {flight_num} in {class} class experienced a delay of {delay} minutes and rated the food as {food_score}/5."
+    Args:
+        row: A pandas Series representing a single row from the dataframe.
+    Returns:
+        A formatted string description of the passenger's experience.
     """
     # Mapping based on KR.md vs Template
     record = {
@@ -57,6 +66,12 @@ def _format_record(row: pd.Series) -> str:
 def _load_and_process_data(csv_path: str) -> List[Document]:
     """
     Reads the CSV and converts rows to LangChain Documents.
+
+    Args:
+        csv_path: The file path to the CSV data.
+
+    Returns:
+        A list of LangChain Document objects containing processed text and metadata.
     """
     try:
         df = load_data(csv_path)
@@ -64,7 +79,7 @@ def _load_and_process_data(csv_path: str) -> List[Document]:
         print(f"WARNING: CSV not found at {csv_path}. Skipping ingestion.")
         return []
 
-    documents = []
+    documents: List[Document] = []
 
     for _, row in df.iterrows():
         text = _format_record(row)
@@ -91,6 +106,11 @@ def get_vector_store(
     """
     Initializes and returns the Chroma vector store.
     If the collection is empty, it attempts to load data from the CSV.
+    Args:
+        persist_directory: Directory where the vector store is persisted.
+        collection_name: Name of the Chroma collection.
+    Returns:
+        An initialized Chroma vector store instance.
     """
     embedding_function = get_embedding_model()
 
@@ -114,10 +134,13 @@ def get_vector_store(
     return vector_store
 
 
-# ~~~ RETRIEVAL ~~~
-def _build_metadata_filter(entities: List[Entity]) -> Optional[dict]:
+def _build_metadata_filter(entities: List[Entity]) -> Optional[Dict[str, Any]]:
     """
     Constructs a ChromaDB metadata filter from extracted entities.
+    Args:
+        entities: A list of Entity objects extracted from the query.
+    Returns:
+        A dictionary representing the metadata filter for ChromaDB, or None if no relevant entities are found.
     """
     filters = []
 
@@ -148,6 +171,12 @@ def query_graph_vector(
     """
     Retrieves semantically similar records from the vector store.
     Supports structured filtering if ProcessedQuery is provided.
+    Args:
+        input_query: The query string or a ProcessedQuery object containing the query and entities.
+        k: The number of results to retrieve.
+
+    Returns:
+        A list of ContextChunk objects representing the retrieved documents.
     """
     store = get_vector_store()
 
@@ -188,8 +217,15 @@ def query_graph_vector(
     return chunks
 
 
-# Script entry point for standalone ingestion/testing
-if __name__ == "__main__":
+def main() -> None:
+    """
+    Main function for standalone execution and testing.
+    """
     print("Initializing Vector DB...")
     vs = get_vector_store()
     print(f"Vector DB contains {len(vs.get()['ids'])} documents.")
+
+
+### ~~~ SCRIPT EXECUTION ~~~ ###
+if __name__ == "__main__":
+    main()
