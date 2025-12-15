@@ -139,9 +139,9 @@ def render_ui():
         st.session_state.total_cost = 0.0
 
     # Import retrieval modules
-    from ingestion.main import main as mock_process_user_query
-    from retrieval.graph_retrieval import query_graph_cypher as mock_query_graph_cypher
-    from retrieval.vector import query_graph_vector as mock_query_graph_vector
+    from ingestion.main import main as process_user_query
+    from retrieval.graph_retrieval import query_graph_cypher
+    from retrieval.vector import query_graph_vector
     from frontend.config.models import get_all_model_names
 
     # Header
@@ -237,20 +237,23 @@ def render_ui():
             with st.spinner("Processing your query..."):
                 try:
                     # Step 1: Process input
-                    processed_query = mock_process_user_query(user_query)
+                    processed_query = process_user_query(user_query)
 
                     # Step 2: Retrieve context
                     context_chunks = []
 
                     if retrieval_method in ["Cypher Only", "Both (Hybrid)"]:
                         with st.spinner("Querying graph database (Cypher)..."):
-                            cypher_results = mock_query_graph_cypher(processed_query)
+                            cypher_results = query_graph_cypher(processed_query)
                             context_chunks.extend(cypher_results)
 
                     if retrieval_method in ["Vector Only", "Both (Hybrid)"]:
                         with st.spinner("Performing vector search..."):
-                            vector_results = mock_query_graph_vector(user_query)
+                            vector_results = query_graph_vector(user_query)
                             context_chunks.extend(vector_results)
+                            print(
+                                f"Vector search returned {len(vector_results)} results."
+                            )
 
                     # Step 3: Generate response
                     with st.spinner(f"Generating response with {model_name}..."):
