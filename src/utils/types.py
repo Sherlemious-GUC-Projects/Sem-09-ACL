@@ -20,7 +20,7 @@ class IntentType(str, Enum):
 
 @dataclass
 class Entity:
-    entity_type: str  # "AIRPORT", "FLIGHT_NUM", "DATE", "AIRCRAFT", "METRIC"
+    entity_type: str  # "AIRPORT", "FLIGHT_NUM", "DATE", "AIRCRAFT"
     value: str
 
 

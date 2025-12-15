@@ -9,8 +9,7 @@ import re
 
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.utils.types import Entity, ProcessedQuery, IntentType
-from src.utils.constant import CSV_PATH
+from src.utils.types import Entity, IntentType
 
 
 ### ~~~ TYPE DEFINITIONS ~~~ ###
@@ -37,9 +36,6 @@ def _ensure_resources() -> None:
         except Exception:
             # Fallback for non-tokenizer resources
             nltk.download(r, quiet=True)
-
-
-_ensure_resources()
 
 
 ### ~~~ PURE FUNCTIONS: EXTRACTION ~~~ ###
@@ -200,107 +196,38 @@ def determine_intent(text: str, entities: List[Entity]) -> IntentType:
     return IntentType.UNKNOWN
 
 
-### ~~~ PIPELINE ~~~ ###
-def process_query(raw_query: str, ref_data: ReferenceData) -> ProcessedQuery:
+def extract_ner(raw_query: str, ref_data: ReferenceData) -> list[Entity]:
     """
-    Main Entry Point: Orchestrates the extraction pipeline.
+    Full NER Processing Pipeline:
+    1. Structured Extraction via Regex
+    2. Unstructured Extraction via NER + Validation
+    3. Merging & Deduplication
+    Args:
+        raw_query: The user's raw text query.
+        ref_data: ReferenceData containing ground truth sets.
+    Returns:
+        List[Entity]: The final list of unique extracted entities.
     """
     # 1. Regex (Structured)
-    structured_ents = extract_structured_entities(raw_query)
+    structured_ents: list[Entity] = extract_structured_entities(raw_query)
 
     # 2. NER + Validation (Unstructured Domain)
-    candidates = extract_ner_candidates(raw_query)
-    domain_ents = validate_and_map_entities(candidates, ref_data)
+    candidates: list[str] = extract_ner_candidates(raw_query)
+    domain_ents: list[Entity] = validate_and_map_entities(candidates, ref_data)
 
     # 3. Merge & Deduplicate
     # Dictionary keyed by (Type, Value) handles uniqueness automatically
-    merged = {}
+    merged: dict[tuple[str, str], Entity] = {}
     for e in structured_ents + domain_ents:
         merged[(e.entity_type, e.value)] = e
-    unique_entities = list(merged.values())
+    unique_entities: list[Entity] = list(merged.values())
 
-    # 4. Determine Intent
-    intent = determine_intent(raw_query, unique_entities)
-
-    return ProcessedQuery(
-        original_text=raw_query, intent=intent, entities=unique_entities
-    )
-
-
-### ~~~ MAIN / TEST ~~~ ###
-def main() -> int:
-    print("~~~ Initializing Perfected NER Processor ~~~ ")
-
-    # 1. Load Data
-    print(f"Loading Reference Data from {CSV_PATH}...")
-    try:
-        ref_data = load_reference_data(CSV_PATH)
-        print(
-            f"Loaded {len(ref_data.airports)} Airports and {len(ref_data.aircraft_models)} Aircraft Models."
-        )
-    except FileNotFoundError:
-        print(f"Error: CSV not found at {CSV_PATH}. Cannot run tests.")
-        return 1
-
-    # 2. Test Cases
-    # We use entities that we KNOW are in the sample CSV (e.g. LAX, ORX, B737-MAX8)
-    # plus some Regex patterns that don't need the DB.
-    test_cases = [
-        (
-            "Flights from LAX to ORX",
-            [("AIRPORT", "LAX"), ("AIRPORT", "ORX"), ("INTENT", "FLIGHT_SEARCH")],
-        ),
-        (
-            "Was flight BA123 delayed on 2023-01-01?",
-            [("FLIGHT_NUM", "BA123"), ("DATE", "2023-01-01")],
-        ),
-        ("How is the food on the B787-10?", [("AIRCRAFT", "B787-10")]),
-        ("Show me stats for ERJ-175", [("AIRCRAFT", "ERJ-175")]),
-    ]
-
-    failures = 0
-    for query, expected in test_cases:
-        print(f"\nQuery: '{query}'")
-        result = process_query(query, ref_data)
-
-        # Flatten results for easy checking
-        # found_types = {e.entity_type for e in result.entities}
-        found_vals = {e.value for e in result.entities}
-
-        print(f"  Found: {[(e.entity_type, e.value) for e in result.entities]}")
-
-        # Check assertions
-        case_passed = True
-        for item in expected:
-            if item[0] == "INTENT":
-                if (
-                    result.intent != item[1]
-                ):  # Mismatch intent name? item[1] is a string e.g. "FLIGHT_SEARCH"
-                    # Enum string comparison
-                    if result.intent.value != item[1] and result.intent.name != item[1]:
-                        print(
-                            f"  [FAIL] Intent mismatch. Expected {item[1]}, got {result.intent}"
-                        )
-                        case_passed = False
-            else:
-                # Entity check (Type, Value)
-                e_type, e_val = item
-                if e_val not in found_vals:
-                    print(f"  [FAIL] Missing Entity: {e_val} ({e_type})")
-                    case_passed = False
-
-        if case_passed:
-            print("  [PASS]")
-        else:
-            failures += 1
-
-    if failures == 0:
-        print("\nAll tests passed successfully!")
-    else:
-        print(f"\n{failures} tests failed.")
-
-    return 0
+    return unique_entities
 
 
 if __name__ == "__main__":
-    main()
+    ...
+#    __   _,_ /_ __,
+#  _(_/__(_/_/_)(_/(_
+#   _/_
+#  (/
