@@ -93,4 +93,13 @@ def equals(
     """"""
     if obj1.__class__ != obj2.__class__:
         return False
+
+    if isinstance(obj1, ProcessedQuery):
+        return (
+            obj1.original_text == obj2.original_text
+            and obj1.intent == obj2.intent
+            and sorted(obj1.entities, key=lambda e: (e.entity_type, e.value))
+            == sorted(obj2.entities, key=lambda e: (e.entity_type, e.value))
+        )
+
     return vars(obj1) == vars(obj2)
