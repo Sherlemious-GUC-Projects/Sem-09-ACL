@@ -38,4 +38,4 @@ CONFIG_PATH = "./config.txt"
 ### ~~~ IR ~~~ ###
 VECTOR_DB_PATH = "./chroma_db"
 COLLECTION_NAME = "airline_reviews"
-USE_OLLAMA = False
+USE_OLLAMA = True
