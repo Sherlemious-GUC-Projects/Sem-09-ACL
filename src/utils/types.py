@@ -52,3 +52,13 @@ def pretty_print(object: Entity | ProcessedQuery | ContextChunk) -> None:
     for key, value in attrs.items():
         print(f"  {key}: {value}")
     print()
+
+
+def equals(
+    obj1: Entity | ProcessedQuery | ContextChunk,
+    obj2: Entity | ProcessedQuery | ContextChunk,
+) -> bool:
+    """"""
+    if obj1.__class__ != obj2.__class__:
+        return False
+    return vars(obj1) == vars(obj2)

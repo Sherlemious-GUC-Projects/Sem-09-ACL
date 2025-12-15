@@ -2,7 +2,8 @@
 # None
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.utils.types import IntentType, Entity, ProcessedQuery
+from src.utils.types import IntentType, Entity, ProcessedQuery, equals, pretty_print
+from src.ingestion.main import main as ingestion_main
 
 
 ### ~~~ STATE DEFINITIONS ~~~ ###
@@ -63,6 +64,22 @@ TEST_QUERIES: list[ProcessedQuery] = [
 
 def main() -> int:
     """"""
+    error_count = 0
+    for test_query in TEST_QUERIES:
+        result = ingestion_main(test_query.original_text)
+        if not equals(result, test_query):
+            print("Test failed for query:", test_query.original_text)
+            print("Expected:")
+            pretty_print(test_query)
+            print("Got:")
+            pretty_print(result)
+            print("-" * 40)
+            error_count += 1
+
+    if error_count == 0:
+        print("All tests passed!")
+    else:
+        print(f"{error_count / len(TEST_QUERIES) * 100}% tests failed.")
     return 0
 
 
