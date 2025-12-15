@@ -1,6 +1,7 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
 from typing import List, FrozenSet
 from dataclasses import dataclass
+import pandas as pd
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
 from src.utils.types import IntentType, Entity
@@ -91,3 +92,16 @@ def determine_intent(text: str, entities: List[Entity]) -> IntentType:
         return IntentType.FLIGHT_SEARCH
 
     return IntentType.UNKNOWN
+
+
+def load_reference_data(csv_path: str) -> ReferenceData:
+    """
+    Loads reference data (airports, aircraft models) from a CSV file.
+    """
+    df = pd.read_csv(csv_path)
+
+    # Assuming 'Origin Station Code' and 'Fleet Type' are the columns
+    airports = frozenset(df["Origin Station Code"].dropna().unique())
+    aircraft_models = frozenset(df["Fleet Type"].dropna().unique())
+
+    return ReferenceData(airports=airports, aircraft_models=aircraft_models)
