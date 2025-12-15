@@ -20,7 +20,7 @@ TEMPLATE_MAP = {
         MATCH (f)-[:ARRIVES_AT]->(d:Airport)
         WHERE (o.station_code = $origin OR $origin IS NULL)
           AND (d.station_code = $destination OR $destination IS NULL)
-          AND (f.flight_number = $flight_number OR $flight_number IS NULL)
+          AND (toString(f.flight_number) = $flight_number OR $flight_number IS NULL)
           AND (f.fleet_type_description = $aircraft OR $aircraft IS NULL)
         RETURN 
             "Flight " + f.flight_number + " from " + o.station_code + " to " + d.station_code + 
@@ -31,7 +31,7 @@ TEMPLATE_MAP = {
     """,
     IntentType.DELAY_ANALYSIS: """
         MATCH (j:Journey)-[:ON]->(f:Flight)
-        WHERE (f.flight_number = $flight_number OR $flight_number IS NULL)
+        WHERE (toString(f.flight_number) = $flight_number OR $flight_number IS NULL)
         WITH f, avg(j.arrival_delay_minutes) as avg_delay, count(j) as count
         ORDER BY avg_delay DESC
         RETURN
@@ -96,7 +96,7 @@ TEMPLATE_MAP = {
     """,
     IntentType.FEEDBACK_VOLUME: """
         MATCH (p:Passenger)-[:TOOK]->(j:Journey)-[:ON]->(f:Flight)
-        WHERE (f.flight_number = $flight_number OR $flight_number IS NULL)
+        WHERE (toString(f.flight_number) = $flight_number OR $flight_number IS NULL)
         WITH f.flight_number AS flight_id, count(j) AS feedback_count
         RETURN 
             "Flight " + toString(flight_id) + " has " + toString(feedback_count) + " feedback entries." AS text,
