@@ -4,7 +4,7 @@ from typing import List
 
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.utils.types import (
+from utils.types import (
     IntentType,
     ProcessedQuery,
     ContextChunk,

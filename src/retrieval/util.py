@@ -6,8 +6,8 @@ import os
 
 
 ### ~~~ GLOBALS IMPORTS ~~~ ###
-from src.utils.types import Config
-from src.utils.constant import CSV_PATH, CONFIG_PATH
+from utils.types import Config
+from utils.constant import CSV_PATH, CONFIG_PATH
 
 
 def load_config(path: str = CONFIG_PATH) -> Config:
