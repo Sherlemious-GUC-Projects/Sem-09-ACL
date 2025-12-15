@@ -1,2 +1,9 @@
 config.txt
+config.yaml
 Neo4j*
+.claude
+.env
+.env.local
+.vscode
+*.pyc
+*.egg-info/
