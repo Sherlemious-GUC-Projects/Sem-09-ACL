@@ -1,18 +1,16 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
-import re
-import nltk
-from typing import List, FrozenSet
 from nltk.tokenize import word_tokenize
-from nltk.tag import pos_tag
+from typing import List, FrozenSet
 from dataclasses import dataclass
+from nltk.tag import pos_tag
 import pandas as pd
+import nltk
+import re
 
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
 from src.utils.types import Entity, ProcessedQuery, IntentType
-
-### ~~~ CONFIGURATION ~~~ ###
-CSV_PATH = "dbs/Airline_surveys_sample.csv"
+from src.utils.constant import CSV_PATH
 
 
 ### ~~~ TYPE DEFINITIONS ~~~ ###
@@ -131,7 +129,6 @@ def validate_and_map_entities(
     Maps valid strings to their specific Entity Types (AIRPORT, AIRCRAFT).
     """
     valid_entities = []
-
     for cand in candidates:
         # Normalize for comparison
         clean_cand = cand.strip().upper()
@@ -170,11 +167,9 @@ def validate_and_map_entities(
 def determine_intent(text: str, entities: List[Entity]) -> IntentType:
     """
     Rule-based intent classification based on text keywords and present entities.
-
     Args:
         text: The raw user query.
         entities: List of entities already extracted from the query.
-
     Returns:
         IntentType: The classified intent.
     """
@@ -206,40 +201,25 @@ def determine_intent(text: str, entities: List[Entity]) -> IntentType:
 
 
 ### ~~~ PIPELINE ~~~ ###
-
-
 def process_query(raw_query: str, ref_data: ReferenceData) -> ProcessedQuery:
     """
-
-
     Main Entry Point: Orchestrates the extraction pipeline.
-
-
     """
-
     # 1. Regex (Structured)
-
     structured_ents = extract_structured_entities(raw_query)
 
     # 2. NER + Validation (Unstructured Domain)
-
     candidates = extract_ner_candidates(raw_query)
-
     domain_ents = validate_and_map_entities(candidates, ref_data)
 
     # 3. Merge & Deduplicate
-
     # Dictionary keyed by (Type, Value) handles uniqueness automatically
-
     merged = {}
-
     for e in structured_ents + domain_ents:
         merged[(e.entity_type, e.value)] = e
-
     unique_entities = list(merged.values())
 
     # 4. Determine Intent
-
     intent = determine_intent(raw_query, unique_entities)
 
     return ProcessedQuery(
