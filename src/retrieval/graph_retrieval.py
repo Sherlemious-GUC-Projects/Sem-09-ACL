@@ -1,7 +1,16 @@
-from typing import List, Dict, Any, Optional
+### ~~~ GLOBAL IMPORTS ~~~ ###
 from neo4j import GraphDatabase, Driver
-from models.models import IntentType, ProcessedQuery, ContextChunk, RetrievalSource, Entity
-from util import load_config, Config
+from typing import List
+
+
+### ~~~ LOCAL IMPORTS ~~~ ###
+from src.utils.types import (
+    IntentType,
+    ProcessedQuery,
+    ContextChunk,
+    RetrievalSource,
+)
+from .util import load_config, Config
 
 # ~~~ CYPHER TEMPLATES ~~~
 TEMPLATE_MAP = {
@@ -19,7 +28,6 @@ TEMPLATE_MAP = {
             {flight: f.flight_number, origin: o.station_code, dest: d.station_code, fleet: f.fleet_type_description} AS metadata
         LIMIT 10
     """,
-
     IntentType.DELAY_ANALYSIS: """
         MATCH (j:Journey)-[:ON]->(f:Flight)
         WHERE (f.flight_number = $flight_number OR $flight_number IS NULL)
@@ -32,7 +40,6 @@ TEMPLATE_MAP = {
             {flight: f.flight_number, avg_delay: avg_delay, journey_count: count} AS metadata
         LIMIT 5
     """,
-    
     IntentType.SATISFACTION_METRICS: """
         MATCH (p:Passenger)-[:TOOK]->(j:Journey)
         WITH p, avg(j.food_satisfaction_score) as avg_food_score
@@ -45,7 +52,6 @@ TEMPLATE_MAP = {
         ORDER BY avg_food_score DESC
         LIMIT 5
     """,
-    
     IntentType.ROUTE_STATS: """
         MATCH (f:Flight)-[:DEPARTS_FROM]->(o:Airport)
         MATCH (f)-[:ARRIVES_AT]->(d:Airport)
@@ -57,7 +63,6 @@ TEMPLATE_MAP = {
         ORDER BY flight_count DESC
         LIMIT 5
     """,
-
     IntentType.LOYALTY_ANALYSIS: """
         MATCH (p:Passenger)-[:TOOK]->(j:Journey)
         WHERE (p.loyalty_program_level = $loyalty_level OR $loyalty_level IS NULL)
@@ -72,7 +77,6 @@ TEMPLATE_MAP = {
         ORDER BY avg_miles DESC
         LIMIT 5
     """,
-
     IntentType.DEMOGRAPHIC_INSIGHTS: """
         MATCH (p:Passenger)-[:TOOK]->(j:Journey)
         WHERE (p.generation = $generation OR $generation IS NULL)
@@ -89,7 +93,6 @@ TEMPLATE_MAP = {
         ORDER BY journey_count DESC
         LIMIT 5
     """,
-
     IntentType.FEEDBACK_VOLUME: """
         MATCH (p:Passenger)-[:TOOK]->(j:Journey)-[:ON]->(f:Flight)
         WHERE (f.flight_number = $flight_number OR $flight_number IS NULL)
@@ -101,7 +104,6 @@ TEMPLATE_MAP = {
         ORDER BY feedback_count DESC
         LIMIT 10
     """,
-
     IntentType.FLEET_PERFORMANCE: """
         MATCH (j:Journey)-[:ON]->(f:Flight)
         WHERE (f.fleet_type_description = $aircraft OR $aircraft IS NULL)
@@ -117,7 +119,6 @@ TEMPLATE_MAP = {
         ORDER BY journey_count DESC
         LIMIT 5
     """,
-
     IntentType.CABIN_CLASS_STATS: """
         MATCH (p:Passenger)-[:TOOK]->(j:Journey)
         WHERE (j.passenger_class = $cabin_class OR $cabin_class IS NULL)
@@ -134,7 +135,6 @@ TEMPLATE_MAP = {
         ORDER BY journey_count DESC
         LIMIT 5
     """,
-
     IntentType.CONNECTION_STATS: """
         MATCH (p:Passenger)-[:TOOK]->(j:Journey)
         WITH CASE WHEN j.number_of_legs > 1 THEN "Multi-leg" ELSE "Direct" END AS connection_type,
@@ -149,7 +149,6 @@ TEMPLATE_MAP = {
             {type: connection_type, journeys: journey_count, avg_delay: avg_delay, avg_food: avg_food} AS metadata
         ORDER BY journey_count DESC
     """,
-
     IntentType.AIRPORT_STATS: """
         MATCH (f:Flight)-[:DEPARTS_FROM]->(a:Airport)
         MATCH (j:Journey)-[:ON]->(f)
@@ -165,23 +164,35 @@ TEMPLATE_MAP = {
         ORDER BY flight_count DESC
         LIMIT 5
     """,
-
     # Fallback for unknown intents
-    IntentType.UNKNOWN: ""
+    IntentType.UNKNOWN: "",
 }
+
 
 def get_driver() -> Driver:
     """
     Creates a Neo4j driver using the shared config.
+    Args:
+        None
+    Returns:
+        Driver: Neo4j driver instance.
     """
     config: Config = load_config()
     return GraphDatabase.driver(config.uri, auth=(config.username, config.password))
 
+
 def query_graph_cypher(processed_input: ProcessedQuery) -> List[ContextChunk]:
     """
     Executes a Cypher query based on the user's intent and entities.
+    Args:
+        processed_input (ProcessedQuery): The processed user query with intent and entities.
+    Returns:
+        List[ContextChunk]: Retrieved context chunks from the graph database.
     """
-    if processed_input.intent not in TEMPLATE_MAP or not TEMPLATE_MAP[processed_input.intent]:
+    if (
+        processed_input.intent not in TEMPLATE_MAP
+        or not TEMPLATE_MAP[processed_input.intent]
+    ):
         return []
 
     # 1. Extract parameters from entities
@@ -193,9 +204,9 @@ def query_graph_cypher(processed_input: ProcessedQuery) -> List[ContextChunk]:
         "generation": None,
         "metric": None,
         "loyalty_level": None,
-        "cabin_class": None
+        "cabin_class": None,
     }
-    
+
     for entity in processed_input.entities:
         if entity.entity_type == "AIRPORT":
             # Simple heuristic: first airport is origin, second is dest (refine later if needed)
@@ -216,27 +227,26 @@ def query_graph_cypher(processed_input: ProcessedQuery) -> List[ContextChunk]:
 
     # 2. Get the Cypher template
     query = TEMPLATE_MAP[processed_input.intent]
-    
+
     results = []
     driver = get_driver()
-    
+
     try:
         with driver.session() as session:
             result = session.run(query, params)
-            
+
             for record in result:
                 chunk = ContextChunk(
                     id=str(record["id"]),
                     text=record["text"],
                     score=1.0,
                     source=RetrievalSource.CYPHER,
-                    metadata=record["metadata"]
+                    metadata=record["metadata"],
                 )
                 results.append(chunk)
     except Exception as e:
         print(f"Error executing Cypher query: {e}")
     finally:
         driver.close()
-        
-    return results
 
+    return results

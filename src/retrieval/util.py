@@ -1,20 +1,16 @@
 ### ~~~ GLOBALS IMPORTS ~~~ ###
-from dataclasses import dataclass
-from typing import Dict, Iterable, List, Sequence
+from typing import Iterable, Sequence
 import pandas as pd
 import json as js
 import os
 
 
-### ~~~ TYPE DEFINITIONS ~~~ ###
-@dataclass
-class Config:
-    uri: str
-    username: str
-    password: str
+### ~~~ GLOBALS IMPORTS ~~~ ###
+from src.utils.types import Config
+from src.utils.constant import CSV_PATH, CONFIG_PATH
 
 
-def load_config(path: str = "./config.txt") -> Config:
+def load_config(path: str = CONFIG_PATH) -> Config:
     """
     Load configuration from a file, returning a Config instance.
     Args:
@@ -51,7 +47,7 @@ def load_config(path: str = "./config.txt") -> Config:
     return config
 
 
-def load_data(path: str = "./dbs/Airline_surveys_sample.csv") -> pd.DataFrame:
+def load_data(path: str = CSV_PATH) -> pd.DataFrame:
     """
     Load data from a CSV file into a pandas DataFrame.
     Args:
@@ -71,27 +67,27 @@ def load_data(path: str = "./dbs/Airline_surveys_sample.csv") -> pd.DataFrame:
     return df
 
 
-def chunk_rows(rows: Sequence[Dict], chunk_size: int = 1_000) -> Iterable[List[Dict]]:
+def chunk_rows(rows: Sequence[dict], chunk_size: int = 1_000) -> Iterable[list[dict]]:
     """
     Yield successive chunks from a list of dictionaries.
     Args:
-        rows (Sequence[Dict]): All rows to be chunked.
+        rows (Sequence[dict]): All rows to be chunked.
         chunk_size (int): Maximum number of rows per chunk.
     Returns:
-        Iterable[List[Dict]]: Generator yielding list chunks.
+        Iterable[list[dict]]: Generator yielding list chunks.
     """
     for start in range(0, len(rows), chunk_size):
         end = start + chunk_size
         yield list(rows[start:end])
 
 
-def load_query_answer(id: int) -> List[Dict]:
+def load_query_answer(id: int) -> list[dict]:
     """
     Load the expected answer for a given query from a JSON file.
     Args:
         id (int): The query ID.
     Returns:
-        List[Dict]: The expected answer as a list of dictionaries.
+        list[dict]: The expected answer as a list of dictionaries.
     Throws:
         FileNotFoundError: If the expected answer file does not exist.
     """
@@ -103,7 +99,6 @@ def load_query_answer(id: int) -> List[Dict]:
 
     ### load expected answer ###
     with open(path, "r", encoding="utf-8-sig") as file:
-        answer: List[Dict] = js.load(file)
+        answer: list[dict] = js.load(file)
 
     return answer
-
