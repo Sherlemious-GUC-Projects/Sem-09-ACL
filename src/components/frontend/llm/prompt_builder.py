@@ -32,9 +32,7 @@ def build_context_section(contexts: List[ContextChunk]) -> str:
     for i, ctx in enumerate(contexts, 1):
         source_label = f"[{ctx.source}]"
         score_label = f"(relevance: {ctx.score:.2f})"
-        context_lines.append(
-            f"{i}. {source_label} {score_label} {ctx.text}"
-        )
+        context_lines.append(f"{i}. {source_label} {score_label} {ctx.text}")
 
     return "\n".join(context_lines)
 
@@ -66,8 +64,7 @@ ANSWER:"""
 
 
 def build_system_and_user_messages(
-    user_query: str,
-    contexts: List[ContextChunk]
+    user_query: str, contexts: List[ContextChunk]
 ) -> tuple[str, str]:
     """
     Build separate system and user messages (for chat-based APIs like Claude).
@@ -91,9 +88,7 @@ USER QUERY: {user_query}"""
 
 
 def truncate_prompt_to_limit(
-    prompt: str,
-    max_chars: int,
-    keep_instructions: bool = True
+    prompt: str, max_chars: int, keep_instructions: bool = True
 ) -> str:
     """
     Truncate prompt if it exceeds character limit.

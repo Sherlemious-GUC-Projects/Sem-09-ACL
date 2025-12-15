@@ -12,7 +12,7 @@ from src.components.frontend.llm.base import (
     LLMResponse,
     APIKeyMissingError,
     RateLimitError,
-    LLMProviderError
+    LLMProviderError,
 )
 from src.components.frontend.config.models import get_model_spec, calculate_cost
 
@@ -45,7 +45,7 @@ class GroqProvider(LLMProvider):
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=True
+        reraise=True,
     )
     def generate(self, prompt: str, config: LLMConfig) -> LLMResponse:
         """
@@ -68,12 +68,7 @@ class GroqProvider(LLMProvider):
             # Groq uses OpenAI-compatible chat completions API
             response = self.client.chat.completions.create(
                 model=self.model_name,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
+                messages=[{"role": "user", "content": prompt}],
                 temperature=config.temperature,
                 max_tokens=config.max_tokens,
                 top_p=config.top_p,
@@ -88,7 +83,11 @@ class GroqProvider(LLMProvider):
             # Extract token usage
             input_tokens = response.usage.prompt_tokens if response.usage else 0
             output_tokens = response.usage.completion_tokens if response.usage else 0
-            total_tokens = response.usage.total_tokens if response.usage else (input_tokens + output_tokens)
+            total_tokens = (
+                response.usage.total_tokens
+                if response.usage
+                else (input_tokens + output_tokens)
+            )
 
             # Calculate cost
             cost = calculate_cost(self.model_name, input_tokens, output_tokens)
@@ -121,8 +120,8 @@ class GroqProvider(LLMProvider):
                         "prompt_tokens": input_tokens,
                         "completion_tokens": output_tokens,
                         "total_tokens": total_tokens,
-                    }
-                }
+                    },
+                },
             )
 
         except GroqRateLimitError as e:

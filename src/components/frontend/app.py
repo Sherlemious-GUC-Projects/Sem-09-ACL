@@ -42,17 +42,23 @@ def get_provider(model_name: str):
     # Select provider based on model
     if spec.provider == "gemini":
         if not config.llm_providers.gemini_api_key:
-            raise ValueError("Gemini API key is not configured. Please set GEMINI_API_KEY environment variable or add it to config.yaml")
+            raise ValueError(
+                "Gemini API key is not configured. Please set GEMINI_API_KEY environment variable or add it to config.yaml"
+            )
         return GeminiProvider(model_name, config.llm_providers.gemini_api_key)
 
     elif spec.provider == "claude":
         if not config.llm_providers.anthropic_api_key:
-            raise ValueError("Claude API key is not configured. Please set ANTHROPIC_API_KEY environment variable or add it to config.yaml")
+            raise ValueError(
+                "Claude API key is not configured. Please set ANTHROPIC_API_KEY environment variable or add it to config.yaml"
+            )
         return ClaudeProvider(model_name, config.llm_providers.anthropic_api_key)
 
     elif spec.provider == "groq":
         if not config.llm_providers.groq_api_key:
-            raise ValueError("Groq API key is not configured. Please set GROQ_API_KEY environment variable or add it to config.yaml")
+            raise ValueError(
+                "Groq API key is not configured. Please set GROQ_API_KEY environment variable or add it to config.yaml"
+            )
         return GroqProvider(model_name, config.llm_providers.groq_api_key)
 
     else:
@@ -63,7 +69,7 @@ def generate_response(
     user_query: str,
     context: List[ContextChunk],
     model_name: str = "gemini-1.5-flash",
-    config: LLMConfig = None
+    config: LLMConfig = None,
 ) -> LLMResponse:
     """
     Generate LLM response using provided context.
@@ -119,7 +125,7 @@ def render_ui():
         page_title="Airline Insights Assistant",
         page_icon="✈️",
         layout="wide",
-        initial_sidebar_state="expanded"
+        initial_sidebar_state="expanded",
     )
 
     # Initialize session state
@@ -153,7 +159,7 @@ def render_ui():
             "Select LLM Model",
             all_models,
             index=0,
-            help="Choose which LLM model to use for generating responses"
+            help="Choose which LLM model to use for generating responses",
         )
 
         # Retrieval method
@@ -161,7 +167,7 @@ def render_ui():
             "Retrieval Method",
             ["Cypher Only", "Vector Only", "Both (Hybrid)"],
             index=2,
-            help="Select how to retrieve context from the knowledge graph"
+            help="Select how to retrieve context from the knowledge graph",
         )
 
         st.divider()
@@ -170,18 +176,22 @@ def render_ui():
         with st.expander("🔧 Advanced Settings"):
             temperature = st.slider(
                 "Temperature",
-                0.0, 1.0, 0.7, 0.1,
-                help="Higher = more creative, Lower = more focused"
+                0.0,
+                1.0,
+                0.7,
+                0.1,
+                help="Higher = more creative, Lower = more focused",
             )
             max_tokens = st.slider(
                 "Max Tokens",
-                256, 4096, 1024, 256,
-                help="Maximum length of the response"
+                256,
+                4096,
+                1024,
+                256,
+                help="Maximum length of the response",
             )
             top_p = st.slider(
-                "Top P",
-                0.0, 1.0, 1.0, 0.05,
-                help="Nucleus sampling parameter"
+                "Top P", 0.0, 1.0, 1.0, 0.05, help="Nucleus sampling parameter"
             )
 
         st.divider()
@@ -195,6 +205,7 @@ def render_ui():
         st.divider()
         st.subheader("🔑 API Keys")
         from src.components.frontend.config.settings import validate_api_keys
+
         api_status = validate_api_keys()
         for provider, available in api_status.items():
             if available:
@@ -211,13 +222,15 @@ def render_ui():
         user_query = st.text_area(
             "Enter your question:",
             placeholder="e.g., What are the most delayed flights from ORD?\n"
-                       "e.g., Show me passenger satisfaction scores for flights to LHR\n"
-                       "e.g., Which aircraft types have the best food ratings?",
+            "e.g., Show me passenger satisfaction scores for flights to LHR\n"
+            "e.g., Which aircraft types have the best food ratings?",
             height=100,
-            key="user_query_input"
+            key="user_query_input",
         )
 
-        submit_button = st.button("🔍 Submit Query", type="primary", use_container_width=True)
+        submit_button = st.button(
+            "🔍 Submit Query", type="primary", use_container_width=True
+        )
 
         # Process query
         if submit_button and user_query:
@@ -242,15 +255,13 @@ def render_ui():
                     # Step 3: Generate response
                     with st.spinner(f"Generating response with {model_name}..."):
                         llm_config = LLMConfig(
-                            temperature=temperature,
-                            max_tokens=max_tokens,
-                            top_p=top_p
+                            temperature=temperature, max_tokens=max_tokens, top_p=top_p
                         )
                         llm_response = generate_response(
                             user_query,
                             context_chunks,
                             model_name=model_name,
-                            config=llm_config
+                            config=llm_config,
                         )
 
                     # Store in session state
@@ -259,19 +270,23 @@ def render_ui():
                     st.session_state.total_cost += llm_response.cost_usd
 
                     # Add to history
-                    st.session_state.query_history.append({
-                        "query": user_query,
-                        "response": llm_response,
-                        "context": context_chunks,
-                        "model": model_name,
-                        "retrieval_method": retrieval_method,
-                    })
+                    st.session_state.query_history.append(
+                        {
+                            "query": user_query,
+                            "response": llm_response,
+                            "context": context_chunks,
+                            "model": model_name,
+                            "retrieval_method": retrieval_method,
+                        }
+                    )
 
                     st.success("Response generated successfully!")
 
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
-                    st.info("Please check your API keys in the sidebar or configuration file.")
+                    st.info(
+                        "Please check your API keys in the sidebar or configuration file."
+                    )
 
         # Display response
         if st.session_state.last_response:
@@ -287,9 +302,13 @@ def render_ui():
             with metric_cols[1]:
                 st.metric("Cost", f"${st.session_state.last_response.cost_usd:.4f}")
             with metric_cols[2]:
-                st.metric("Time", f"{st.session_state.last_response.response_time_ms:.0f}ms")
+                st.metric(
+                    "Time", f"{st.session_state.last_response.response_time_ms:.0f}ms"
+                )
             with metric_cols[3]:
-                st.metric("Model", st.session_state.last_response.model.split('-')[0].upper())
+                st.metric(
+                    "Model", st.session_state.last_response.model.split("-")[0].upper()
+                )
 
     with col2:
         # Context display
@@ -299,8 +318,7 @@ def render_ui():
 
             for i, ctx in enumerate(st.session_state.last_context[:10], 1):
                 with st.expander(
-                    f"#{i} [{ctx.source}] Score: {ctx.score:.2f}",
-                    expanded=(i <= 3)
+                    f"#{i} [{ctx.source}] Score: {ctx.score:.2f}", expanded=(i <= 3)
                 ):
                     st.write(ctx.text)
                     st.caption("Metadata:")
@@ -308,12 +326,16 @@ def render_ui():
 
     # Bottom tabs for advanced features
     st.divider()
-    tab1, tab2, tab3 = st.tabs(["📈 Graph Visualization", "🔄 Multi-Model Compare", "📜 Query History"])
+    tab1, tab2, tab3 = st.tabs(
+        ["📈 Graph Visualization", "🔄 Multi-Model Compare", "📜 Query History"]
+    )
 
     with tab1:
         st.subheader("Knowledge Graph Visualization")
         if st.session_state.last_context:
-            st.info("Graph visualization feature coming soon. This will display the retrieved nodes and relationships from the knowledge graph.")
+            st.info(
+                "Graph visualization feature coming soon. This will display the retrieved nodes and relationships from the knowledge graph."
+            )
             # Placeholder for graph viz
         else:
             st.info("Submit a query to see the knowledge graph visualization.")
@@ -321,7 +343,9 @@ def render_ui():
     with tab2:
         st.subheader("Multi-Model Comparison")
         if user_query:
-            st.info("Multi-model comparison feature coming soon. This will allow you to compare responses from multiple models side-by-side.")
+            st.info(
+                "Multi-model comparison feature coming soon. This will allow you to compare responses from multiple models side-by-side."
+            )
             # Placeholder for multi-model comparison
         else:
             st.info("Enter a query above to compare responses across different models.")
@@ -330,7 +354,9 @@ def render_ui():
         st.subheader("Query History")
         if st.session_state.query_history:
             for i, item in enumerate(reversed(st.session_state.query_history), 1):
-                with st.expander(f"Query {len(st.session_state.query_history) - i + 1}: {item['query'][:50]}..."):
+                with st.expander(
+                    f"Query {len(st.session_state.query_history) - i + 1}: {item['query'][:50]}..."
+                ):
                     st.write(f"**Query:** {item['query']}")
                     st.write(f"**Model:** {item['model']}")
                     st.write(f"**Retrieval:** {item['retrieval_method']}")

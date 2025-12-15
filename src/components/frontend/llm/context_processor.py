@@ -45,9 +45,7 @@ def rank_contexts(contexts: List[ContextChunk]) -> List[ContextChunk]:
 
 
 def balance_sources(
-    contexts: List[ContextChunk],
-    max_cypher: int = 5,
-    max_vector: int = 5
+    contexts: List[ContextChunk], max_cypher: int = 5, max_vector: int = 5
 ) -> List[ContextChunk]:
     """
     Ensure balanced representation from both retrieval sources.
@@ -64,10 +62,7 @@ def balance_sources(
     vector_results = [c for c in contexts if c.source == RetrievalSource.VECTOR]
 
     # Take top N from each source
-    balanced = (
-        cypher_results[:max_cypher] +
-        vector_results[:max_vector]
-    )
+    balanced = cypher_results[:max_cypher] + vector_results[:max_vector]
 
     # Re-sort by score
     return sorted(balanced, key=lambda x: x.score, reverse=True)
@@ -76,7 +71,7 @@ def balance_sources(
 def truncate_to_token_limit(
     contexts: List[ContextChunk],
     max_tokens: int = 4000,
-    tokens_per_char: float = 0.25  # Rough estimate: 4 chars per token
+    tokens_per_char: float = 0.25,  # Rough estimate: 4 chars per token
 ) -> List[ContextChunk]:
     """
     Truncate context list to fit within token limit.
@@ -107,7 +102,7 @@ def truncate_to_token_limit(
 def process_contexts(
     contexts: List[ContextChunk],
     max_tokens: Optional[int] = None,
-    balance: bool = False
+    balance: bool = False,
 ) -> List[ContextChunk]:
     """
     Complete context processing pipeline.
@@ -138,8 +133,7 @@ def process_contexts(
 
 
 def merge_contexts(
-    cypher_contexts: List[ContextChunk],
-    vector_contexts: List[ContextChunk]
+    cypher_contexts: List[ContextChunk], vector_contexts: List[ContextChunk]
 ) -> List[ContextChunk]:
     """
     Merge contexts from both retrieval methods.

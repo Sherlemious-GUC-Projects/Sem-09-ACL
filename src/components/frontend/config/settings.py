@@ -74,7 +74,7 @@ def _resolve_env_vars(value: str) -> str:
         return value
 
     # Find all ${VAR_NAME} patterns
-    pattern = r'\$\{([^}]+)\}'
+    pattern = r"\$\{([^}]+)\}"
     matches = re.findall(pattern, value)
 
     for var_name in matches:
@@ -150,16 +150,14 @@ def load_config() -> AppConfig:
     llm_providers_config = yaml_config.get("llm_providers", {})
     llm_providers = LLMProviderConfig(
         gemini_api_key=os.getenv(
-            "GEMINI_API_KEY",
-            llm_providers_config.get("gemini", {}).get("api_key", "")
+            "GEMINI_API_KEY", llm_providers_config.get("gemini", {}).get("api_key", "")
         ),
         anthropic_api_key=os.getenv(
             "ANTHROPIC_API_KEY",
-            llm_providers_config.get("claude", {}).get("api_key", "")
+            llm_providers_config.get("claude", {}).get("api_key", ""),
         ),
         groq_api_key=os.getenv(
-            "GROQ_API_KEY",
-            llm_providers_config.get("groq", {}).get("api_key", "")
+            "GROQ_API_KEY", llm_providers_config.get("groq", {}).get("api_key", "")
         ),
     )
 
@@ -168,41 +166,37 @@ def load_config() -> AppConfig:
     ui_settings = UIConfig(
         default_retrieval_method=os.getenv(
             "DEFAULT_RETRIEVAL_METHOD",
-            ui_config_dict.get("default_retrieval_method", "both")
+            ui_config_dict.get("default_retrieval_method", "both"),
         ),
         default_model=os.getenv(
-            "DEFAULT_MODEL",
-            ui_config_dict.get("default_model", "gemini-1.5-flash")
+            "DEFAULT_MODEL", ui_config_dict.get("default_model", "gemini-1.5-flash")
         ),
         cache_enabled=os.getenv(
-            "CACHE_ENABLED",
-            str(ui_config_dict.get("cache_enabled", True))
-        ).lower() in ("true", "1", "yes"),
-        cache_ttl_seconds=int(os.getenv(
-            "CACHE_TTL_SECONDS",
-            ui_config_dict.get("cache_ttl_seconds", 3600)
-        )),
-        max_context_display=int(os.getenv(
-            "MAX_CONTEXT_DISPLAY",
-            ui_config_dict.get("max_context_display", 10)
-        )),
+            "CACHE_ENABLED", str(ui_config_dict.get("cache_enabled", True))
+        ).lower()
+        in ("true", "1", "yes"),
+        cache_ttl_seconds=int(
+            os.getenv(
+                "CACHE_TTL_SECONDS", ui_config_dict.get("cache_ttl_seconds", 3600)
+            )
+        ),
+        max_context_display=int(
+            os.getenv(
+                "MAX_CONTEXT_DISPLAY", ui_config_dict.get("max_context_display", 10)
+            )
+        ),
     )
 
     # LLM Config Defaults
     llm_config_dict = yaml_config.get("llm_config", {})
     llm_config = LLMConfigDefaults(
-        temperature=float(os.getenv(
-            "LLM_TEMPERATURE",
-            llm_config_dict.get("temperature", 0.7)
-        )),
-        max_tokens=int(os.getenv(
-            "LLM_MAX_TOKENS",
-            llm_config_dict.get("max_tokens", 1024)
-        )),
-        top_p=float(os.getenv(
-            "LLM_TOP_P",
-            llm_config_dict.get("top_p", 1.0)
-        )),
+        temperature=float(
+            os.getenv("LLM_TEMPERATURE", llm_config_dict.get("temperature", 0.7))
+        ),
+        max_tokens=int(
+            os.getenv("LLM_MAX_TOKENS", llm_config_dict.get("max_tokens", 1024))
+        ),
+        top_p=float(os.getenv("LLM_TOP_P", llm_config_dict.get("top_p", 1.0))),
     )
 
     return AppConfig(

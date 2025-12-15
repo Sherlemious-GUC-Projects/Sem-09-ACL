@@ -26,7 +26,7 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         context_window=1_000_000,
         input_price_per_1k=0.00015,
         output_price_per_1k=0.0006,
-        display_name="Gemini 1.5 Flash (Fast & Cheap)"
+        display_name="Gemini 1.5 Flash (Fast & Cheap)",
     ),
     "gemini-1.5-pro": ModelSpec(
         name="gemini-1.5-pro",
@@ -34,9 +34,8 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         context_window=2_000_000,
         input_price_per_1k=0.00125,
         output_price_per_1k=0.005,
-        display_name="Gemini 1.5 Pro (High Quality)"
+        display_name="Gemini 1.5 Pro (High Quality)",
     ),
-
     # Anthropic Claude Models
     "claude-3-5-haiku-20241022": ModelSpec(
         name="claude-3-5-haiku-20241022",
@@ -44,7 +43,7 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         context_window=200_000,
         input_price_per_1k=0.00025,
         output_price_per_1k=0.00125,
-        display_name="Claude 3.5 Haiku (Fast & Cheap)"
+        display_name="Claude 3.5 Haiku (Fast & Cheap)",
     ),
     "claude-3-5-sonnet-20241022": ModelSpec(
         name="claude-3-5-sonnet-20241022",
@@ -52,9 +51,8 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         context_window=200_000,
         input_price_per_1k=0.003,
         output_price_per_1k=0.015,
-        display_name="Claude 3.5 Sonnet (Balanced)"
+        display_name="Claude 3.5 Sonnet (Balanced)",
     ),
-
     # Groq Models (Free tier available)
     "llama-3.1-8b-instant": ModelSpec(
         name="llama-3.1-8b-instant",
@@ -62,7 +60,7 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         context_window=131_072,
         input_price_per_1k=0.00005,
         output_price_per_1k=0.00008,
-        display_name="Llama 3.1 8B (Ultra Fast)"
+        display_name="Llama 3.1 8B (Ultra Fast)",
     ),
     "llama-3.1-70b-versatile": ModelSpec(
         name="llama-3.1-70b-versatile",
@@ -70,7 +68,7 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         context_window=131_072,
         input_price_per_1k=0.00059,
         output_price_per_1k=0.00079,
-        display_name="Llama 3.1 70B (Powerful)"
+        display_name="Llama 3.1 70B (Powerful)",
     ),
     "mixtral-8x7b-32768": ModelSpec(
         name="mixtral-8x7b-32768",
@@ -78,7 +76,7 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         context_window=32_768,
         input_price_per_1k=0.00024,
         output_price_per_1k=0.00024,
-        display_name="Mixtral 8x7B (MoE)"
+        display_name="Mixtral 8x7B (MoE)",
     ),
     "gemma2-9b-it": ModelSpec(
         name="gemma2-9b-it",
@@ -86,7 +84,7 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         context_window=8_192,
         input_price_per_1k=0.0002,
         output_price_per_1k=0.0002,
-        display_name="Gemma 2 9B (Efficient)"
+        display_name="Gemma 2 9B (Efficient)",
     ),
 }
 
@@ -145,10 +143,7 @@ def get_models_by_provider(provider: str) -> list[str]:
     Returns:
         List of model names
     """
-    return [
-        name for name, spec in MODEL_SPECS.items()
-        if spec.provider == provider
-    ]
+    return [name for name, spec in MODEL_SPECS.items() if spec.provider == provider]
 
 
 # Model presets for different use cases

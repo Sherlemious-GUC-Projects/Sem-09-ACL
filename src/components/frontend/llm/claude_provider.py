@@ -12,7 +12,7 @@ from src.components.frontend.llm.base import (
     LLMResponse,
     APIKeyMissingError,
     RateLimitError,
-    LLMProviderError
+    LLMProviderError,
 )
 from src.components.frontend.config.models import get_model_spec, calculate_cost
 
@@ -45,7 +45,7 @@ class ClaudeProvider(LLMProvider):
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=True
+        reraise=True,
     )
     def generate(self, prompt: str, config: LLMConfig) -> LLMResponse:
         """
@@ -82,12 +82,7 @@ class ClaudeProvider(LLMProvider):
                 temperature=config.temperature,
                 top_p=config.top_p,
                 system=system_message,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": user_message
-                    }
-                ]
+                messages=[{"role": "user", "content": user_message}],
             )
 
             # Calculate response time
@@ -117,10 +112,7 @@ class ClaudeProvider(LLMProvider):
                     "type": response.type,
                     "role": response.role,
                     "content": [
-                        {
-                            "type": c.type,
-                            "text": c.text if hasattr(c, "text") else ""
-                        }
+                        {"type": c.type, "text": c.text if hasattr(c, "text") else ""}
                         for c in response.content
                     ],
                     "model": response.model,
@@ -128,8 +120,8 @@ class ClaudeProvider(LLMProvider):
                     "usage": {
                         "input_tokens": input_tokens,
                         "output_tokens": output_tokens,
-                    }
-                }
+                    },
+                },
             )
 
         except AnthropicRateLimitError as e:

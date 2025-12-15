@@ -12,7 +12,7 @@ from src.components.frontend.llm.base import (
     LLMResponse,
     APIKeyMissingError,
     RateLimitError,
-    LLMProviderError
+    LLMProviderError,
 )
 from src.components.frontend.config.models import get_model_spec, calculate_cost
 
@@ -48,7 +48,7 @@ class GeminiProvider(LLMProvider):
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
-        reraise=True
+        reraise=True,
     )
     def generate(self, prompt: str, config: LLMConfig) -> LLMResponse:
         """
@@ -77,8 +77,7 @@ class GeminiProvider(LLMProvider):
 
             # Generate response
             response = self.model.generate_content(
-                prompt,
-                generation_config=generation_config
+                prompt, generation_config=generation_config
             )
 
             # Calculate response time
@@ -116,12 +115,14 @@ class GeminiProvider(LLMProvider):
                 raw_response={
                     "candidates": [
                         {
-                            "content": c.content.parts[0].text if c.content.parts else "",
+                            "content": c.content.parts[0].text
+                            if c.content.parts
+                            else "",
                             "finish_reason": c.finish_reason,
                             "safety_ratings": [
                                 {"category": r.category, "probability": r.probability}
                                 for r in c.safety_ratings
-                            ]
+                            ],
                         }
                         for c in response.candidates
                     ],
@@ -129,8 +130,8 @@ class GeminiProvider(LLMProvider):
                         "prompt_token_count": input_tokens,
                         "candidates_token_count": output_tokens,
                         "total_token_count": total_tokens,
-                    }
-                }
+                    },
+                },
             )
 
         except Exception as e:
