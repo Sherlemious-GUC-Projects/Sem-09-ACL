@@ -9,6 +9,7 @@ from src.utils.types import (
     ProcessedQuery,
     ContextChunk,
     RetrievalSource,
+    EntityType,
 )
 from .util import load_config, Config
 
@@ -196,7 +197,7 @@ def query_graph_cypher(processed_input: ProcessedQuery) -> List[ContextChunk]:
         return []
 
     # 1. Extract parameters from entities
-    params = {
+    params: dict[str, str | None] = {
         "origin": None,
         "destination": None,
         "flight_number": None,
@@ -208,21 +209,21 @@ def query_graph_cypher(processed_input: ProcessedQuery) -> List[ContextChunk]:
     }
 
     for entity in processed_input.entities:
-        if entity.entity_type == "AIRPORT":
+        if entity.entity_type == EntityType.AIRPORT:
             # Simple heuristic: first airport is origin, second is dest (refine later if needed)
             if not params["origin"]:
                 params["origin"] = entity.value
             else:
                 params["destination"] = entity.value
-        elif entity.entity_type == "FLIGHT_NUM":
+        elif entity.entity_type == EntityType.FLIGHT_NUMBER:
             params["flight_number"] = entity.value
-        elif entity.entity_type == "AIRCRAFT":
+        elif entity.entity_type == EntityType.AIRCRAFT:
             params["aircraft"] = entity.value
-        elif entity.entity_type == "GENERATION":
+        elif entity.entity_type == EntityType.GENERATION:
             params["generation"] = entity.value
-        elif entity.entity_type == "LOYALTY_LEVEL":
+        elif entity.entity_type == EntityType.LOYALTY_LEVEL:
             params["loyalty_level"] = entity.value
-        elif entity.entity_type == "CABIN_CLASS":
+        elif entity.entity_type == EntityType.CABIN_CLASS:
             params["cabin_class"] = entity.value
 
     # 2. Get the Cypher template

@@ -9,7 +9,7 @@ import re
 
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.utils.types import Entity, IntentType
+from src.utils.types import Entity, IntentType, EntityType
 from src.ingestion.analyise_sentiment import classifier
 
 
@@ -70,12 +70,14 @@ def extract_structured_entities(text: str) -> List[Entity]:
 
     # 1. Dates (YYYY-MM-DD)
     date_matches = re.findall(r"\b\d{4}-\d{2}-\d{2}\b", text)
-    entities.extend([Entity("DATE", m) for m in date_matches])
+    entities.extend([Entity(EntityType.DATE, m) for m in date_matches])
 
     # 2. Flight Numbers (e.g., BA123, UA45)
     # Pattern: 2 letters (Airline) + 1-4 digits
     flight_matches = re.findall(r"\b[A-Za-z]{2}\d{1,4}\b", text)
-    entities.extend([Entity("FLIGHT_NUM", m.upper()) for m in flight_matches])
+    entities.extend(
+        [Entity(EntityType.FLIGHT_NUMBER, m.upper()) for m in flight_matches]
+    )
 
     return entities
 
@@ -173,20 +175,20 @@ def validate_and_map_entities(
 
         # 1. Exact Match Check (Reference Data)
         if cand_upper in ref.airports:
-            valid_entities.append(Entity("AIRPORT", cand_upper))
+            valid_entities.append(Entity(EntityType.AIRPORT, cand_upper))
             continue
 
         for model in ref.aircraft_models:
             if cand_upper == model.upper() or (
                 len(cand_upper) > 3 and cand_upper in model.upper()
             ):
-                valid_entities.append(Entity("AIRCRAFT", model))
+                valid_entities.append(Entity(EntityType.AIRCRAFT, model))
                 break
         else:
             # 2. Heuristic: 3-Letter Uppercase Code -> Likely Airport (IATA)
             # (Solves LHR, ORD, CDG missing from CSV)
             if re.fullmatch(r"[A-Z]{3}", clean_cand):
-                valid_entities.append(Entity("AIRPORT", clean_cand))
+                valid_entities.append(Entity(EntityType.AIRPORT, clean_cand))
                 continue
 
             # 3. Heuristic: Noise Filter
@@ -213,14 +215,14 @@ def validate_and_map_entities(
                     if top_label == "airport code":
                         # Clean to remove noise if any
                         cleaned = clean_entity_value(clean_cand)
-                        valid_entities.append(Entity("AIRPORT", cleaned))
+                        valid_entities.append(Entity(EntityType.AIRPORT, cleaned))
                     elif top_label == "aircraft model":
                         # Clean "new A321neo configuration" -> "A321neo"
                         cleaned = clean_entity_value(clean_cand)
-                        valid_entities.append(Entity("AIRCRAFT", cleaned))
+                        valid_entities.append(Entity(EntityType.AIRCRAFT, cleaned))
                     elif top_label == "date":
                         # Do NOT clean dates (we need "past year")
-                        valid_entities.append(Entity("DATE", clean_cand))
+                        valid_entities.append(Entity(EntityType.DATE, clean_cand))
                     # 'city' and 'general text' are intentionally dropped
             except Exception:
                 pass
@@ -241,8 +243,8 @@ def determine_intent(text: str, entities: List[Entity]) -> IntentType:
     entity_types = {e.entity_type for e in entities}
 
     # Boolean flags for readability
-    has_metrics = "METRIC" in entity_types
-    has_airports = "AIRPORT" in entity_types
+    has_metrics = EntityType.METRIC in entity_types
+    has_airports = EntityType.AIRPORT in entity_types
 
     # Priority 1: Statistical/Aggregate queries
     if "route" in text_lower or "busiest" in text_lower:
