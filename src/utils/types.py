@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import List, Dict
 
 ##########################
@@ -22,9 +22,20 @@ class IntentType(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
+class EntityType(StrEnum):
+    AIRPORT = "AIRPORT"
+    FLIGHT_NUMBER = "FLIGHT_NUMBER"
+    AIRCRAFT = "AIRCRAFT"
+    DATE = "DATE"
+    GENERATION = "GENERATION"
+    LOYALTY_LEVEL = "LOYALTY_LEVEL"
+    CABIN_CLASS = "CABIN_CLASS"
+    METRIC = "METRIC"
+
+
 @dataclass
 class Entity:
-    entity_type: str  # "AIRPORT", "FLIGHT_NUM", "DATE", "AIRCRAFT"
+    entity_type: EntityType
     value: str
 
 

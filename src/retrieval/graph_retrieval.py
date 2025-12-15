@@ -9,6 +9,7 @@ from src.utils.types import (
     ProcessedQuery,
     ContextChunk,
     RetrievalSource,
+    EntityType,
 )
 from .util import load_config, Config
 
@@ -19,7 +20,7 @@ TEMPLATE_MAP = {
         MATCH (f)-[:ARRIVES_AT]->(d:Airport)
         WHERE (o.station_code = $origin OR $origin IS NULL)
           AND (d.station_code = $destination OR $destination IS NULL)
-          AND (f.flight_number = $flight_number OR $flight_number IS NULL)
+          AND (toString(f.flight_number) = $flight_number OR $flight_number IS NULL)
           AND (f.fleet_type_description = $aircraft OR $aircraft IS NULL)
         RETURN 
             "Flight " + f.flight_number + " from " + o.station_code + " to " + d.station_code + 
@@ -30,7 +31,7 @@ TEMPLATE_MAP = {
     """,
     IntentType.DELAY_ANALYSIS: """
         MATCH (j:Journey)-[:ON]->(f:Flight)
-        WHERE (f.flight_number = $flight_number OR $flight_number IS NULL)
+        WHERE (toString(f.flight_number) = $flight_number OR $flight_number IS NULL)
         WITH f, avg(j.arrival_delay_minutes) as avg_delay, count(j) as count
         ORDER BY avg_delay DESC
         RETURN
@@ -95,7 +96,7 @@ TEMPLATE_MAP = {
     """,
     IntentType.FEEDBACK_VOLUME: """
         MATCH (p:Passenger)-[:TOOK]->(j:Journey)-[:ON]->(f:Flight)
-        WHERE (f.flight_number = $flight_number OR $flight_number IS NULL)
+        WHERE (toString(f.flight_number) = $flight_number OR $flight_number IS NULL)
         WITH f.flight_number AS flight_id, count(j) AS feedback_count
         RETURN 
             "Flight " + toString(flight_id) + " has " + toString(feedback_count) + " feedback entries." AS text,
@@ -196,7 +197,7 @@ def query_graph_cypher(processed_input: ProcessedQuery) -> List[ContextChunk]:
         return []
 
     # 1. Extract parameters from entities
-    params = {
+    params: dict[str, str | None] = {
         "origin": None,
         "destination": None,
         "flight_number": None,
@@ -208,21 +209,21 @@ def query_graph_cypher(processed_input: ProcessedQuery) -> List[ContextChunk]:
     }
 
     for entity in processed_input.entities:
-        if entity.entity_type == "AIRPORT":
+        if entity.entity_type == EntityType.AIRPORT:
             # Simple heuristic: first airport is origin, second is dest (refine later if needed)
             if not params["origin"]:
                 params["origin"] = entity.value
             else:
                 params["destination"] = entity.value
-        elif entity.entity_type == "FLIGHT_NUM":
+        elif entity.entity_type == EntityType.FLIGHT_NUMBER:
             params["flight_number"] = entity.value
-        elif entity.entity_type == "AIRCRAFT":
+        elif entity.entity_type == EntityType.AIRCRAFT:
             params["aircraft"] = entity.value
-        elif entity.entity_type == "GENERATION":
+        elif entity.entity_type == EntityType.GENERATION:
             params["generation"] = entity.value
-        elif entity.entity_type == "LOYALTY_LEVEL":
+        elif entity.entity_type == EntityType.LOYALTY_LEVEL:
             params["loyalty_level"] = entity.value
-        elif entity.entity_type == "CABIN_CLASS":
+        elif entity.entity_type == EntityType.CABIN_CLASS:
             params["cabin_class"] = entity.value
 
     # 2. Get the Cypher template
