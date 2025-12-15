@@ -29,6 +29,7 @@ class GraphTestCase:
 def has_results(results: List[ContextChunk]) -> bool:
     return len(results) > 0
 
+
 def is_empty(results: List[ContextChunk]) -> bool:
     return len(results) == 0
 
@@ -53,7 +54,6 @@ TEST_CASES: List[GraphTestCase] = [
         ),
         validator=has_results,
     ),
-
     # --- 2. DELAY_ANALYSIS ---
     GraphTestCase(
         description="Delay Analysis: General",
@@ -73,7 +73,6 @@ TEST_CASES: List[GraphTestCase] = [
         ),
         validator=has_results,
     ),
-
     # --- 3. SATISFACTION_METRICS ---
     GraphTestCase(
         description="Satisfaction Metrics: General",
@@ -91,11 +90,10 @@ TEST_CASES: List[GraphTestCase] = [
             intent=IntentType.SATISFACTION_METRICS,
             entities=[Entity(EntityType.GENERATION, "Boomer")],
         ),
-        # Assuming "Baby Boomer" exists, if not it might fail or return empty. 
+        # Assuming "Baby Boomer" exists, if not it might fail or return empty.
         # Using has_results tentatively, expecting some data.
-        validator=has_results, 
+        validator=has_results,
     ),
-
     # --- 4. ROUTE_STATS ---
     GraphTestCase(
         description="Route Stats: Busiest Routes",
@@ -115,7 +113,6 @@ TEST_CASES: List[GraphTestCase] = [
         ),
         validator=has_results,
     ),
-
     # --- 5. LOYALTY_ANALYSIS ---
     GraphTestCase(
         description="Loyalty Analysis: Compare Levels",
@@ -135,7 +132,6 @@ TEST_CASES: List[GraphTestCase] = [
         ),
         validator=has_results,
     ),
-
     # --- 6. DEMOGRAPHIC_INSIGHTS ---
     GraphTestCase(
         description="Demographic Insights: General",
@@ -155,7 +151,6 @@ TEST_CASES: List[GraphTestCase] = [
         ),
         validator=has_results,
     ),
-
     # --- 7. FEEDBACK_VOLUME ---
     GraphTestCase(
         description="Feedback Volume: Most Feedback",
@@ -175,7 +170,6 @@ TEST_CASES: List[GraphTestCase] = [
         ),
         validator=has_results,
     ),
-
     # --- 8. FLEET_PERFORMANCE ---
     GraphTestCase(
         description="Fleet Performance: All Types",
@@ -195,7 +189,6 @@ TEST_CASES: List[GraphTestCase] = [
         ),
         validator=has_results,
     ),
-
     # --- 9. CABIN_CLASS_STATS ---
     GraphTestCase(
         description="Cabin Class Stats: Compare Classes",
@@ -215,7 +208,6 @@ TEST_CASES: List[GraphTestCase] = [
         ),
         validator=has_results,
     ),
-
     # --- 10. CONNECTION_STATS ---
     GraphTestCase(
         description="Connection Stats: Direct vs Connecting",
@@ -235,7 +227,6 @@ TEST_CASES: List[GraphTestCase] = [
         ),
         validator=has_results,
     ),
-
     # --- 11. AIRPORT_STATS ---
     GraphTestCase(
         description="Airport Stats: General",
@@ -255,7 +246,6 @@ TEST_CASES: List[GraphTestCase] = [
         ),
         validator=has_results,
     ),
-
     # --- 12. UNKNOWN ---
     GraphTestCase(
         description="Unknown Intent: CEO",
@@ -283,7 +273,7 @@ MAX_TEXT_LENGTH_FOR_DISPLAY: int = 100
 
 ### ~~~ FUNCTION DEFINITIONS ~~~ ###
 def main() -> int:
-    ''''''
+    """"""
     error_count = 0
     print(f"Running {len(TEST_CASES)} graph retrieval tests...\n")
 
@@ -291,10 +281,12 @@ def main() -> int:
         print(f"--- Testing: {test_case.description} ---")
         try:
             results = query_graph_cypher(test_case.query)
-            
+
             if not test_case.validator(results):
                 print(f"Test failed for query: {test_case.query.original_text}")
-                print(f"Expected: Validator '{test_case.validator.__name__}' to return True")
+                print(
+                    f"Expected: Validator '{test_case.validator.__name__}' to return True"
+                )
                 print(f"Got: {len(results)} results")
                 if results:
                     print("First result sample:")
@@ -311,9 +303,9 @@ def main() -> int:
                             if len(chunk.text) > MAX_TEXT_LENGTH_FOR_DISPLAY
                             else chunk.text
                         )
-                        print(f"  Chunk {i+1}:")
+                        print(f"  Chunk {i + 1}:")
                         print(f"    id: {chunk.id}")
-                        print(f"    text: \"{truncated_text}\"")
+                        print(f'    text: "{truncated_text}"')
                         print(f"    source: {chunk.source}")
                     print("-" * 40)
         except Exception as e:

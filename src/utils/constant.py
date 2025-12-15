@@ -1,7 +1,7 @@
 from .types import IntentType
 
+### ~~~ INGESTION ~~~ ###
 CSV_PATH = "dbs/Airline_surveys_sample.csv"
-CONFIG_PATH = "./config.txt"
 CANDIDATE_LABELS = [
     "finding and booking specific flights",
     "analysis of delay causes and punctuality trends",
@@ -31,3 +31,11 @@ LABEL_TO_INTENT = {
     "request for hotel booking or non-flight services": IntentType.UNKNOWN,
 }
 CONFIDENCE_THRESHOLD: float = 0.3
+
+### ~~~ KG ~~~ ###
+CONFIG_PATH = "./config.txt"
+
+### ~~~ IR ~~~ ###
+VECTOR_DB_PATH = "./chroma_db"
+COLLECTION_NAME = "airline_reviews"
+USE_OLLAMA = True
