@@ -3,7 +3,6 @@ import nltk
 import re
 from typing import List, FrozenSet, Optional
 from nltk.tokenize import word_tokenize
-from nltk.chunk import ne_chunk
 from nltk.tag import pos_tag
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
@@ -65,19 +64,14 @@ def extract_entities_nltk(
     text: str, valid_airports: FrozenSet[str], valid_aircraft: FrozenSet[str]
 ) -> List[Entity]:
     """
-    Extracts entities using NLTK for Named Entity Recognition (NER) and POS tagging,
-    combined with Regex for specific patterns like Flight Numbers.
-
-    Workflow:
-        1. Tokenize & POS Tag (NLTK)
-        2. Named Entity Chunking (NLTK)
-        3. Traverse Tree for GPE/ORG (Airports)
-        4. Traverse Leaves for Nouns/Proper Nouns (Aircraft, FlightNum, Dates)
+    Extracts entities using NLTK POS Tagging and a custom Chunking Grammar.
+    This is more robust for domain-specific entities (like '737 Max') than
+    the generic 'ne_chunk' model.
 
     Args:
         text: Raw user text.
-        valid_airports: Reference set for validation (IATA codes).
-        valid_aircraft: Reference set for validation (Model names).
+        valid_airports: Reference set for validation.
+        valid_aircraft: Reference set for validation.
 
     Returns:
         List[Entity]: List of discovered entities.
@@ -88,55 +82,70 @@ def extract_entities_nltk(
     tokens = word_tokenize(text)
     tagged = pos_tag(tokens)
 
-    ### 2. NE Chunking ###
-    # This builds a tree where some tokens are grouped into subtrees (NEs)
-    chunked = ne_chunk(tagged)
+    ### 2. Custom Chunking Grammar ###
+    # We define patterns for Noun Phrases that might be our entities.
+    # NP: Optional Number (CD) followed by one or more Proper Nouns (NNP)
+    #     Matches: "737 Max" (CD NNP), "JFK" (NNP), "Boeing 777" (NNP CD)
+    grammar = r"""
+      ENTITY_PHRASE: {<CD|NNP>+}   # Capture sequences of proper nouns and numbers
+    """
+    chunk_parser = nltk.RegexpParser(grammar)
+    tree = chunk_parser.parse(tagged)
 
-    ### 3. Extraction Loop ###
-    for node in chunked:
-        if isinstance(node, nltk.tree.Tree):
-            # It's a Named Entity (e.g., (GPE New/NNP York/NNP))
-            label = node.label()
-            leaves = node.leaves()  # List of (word, tag)
-            entity_text = " ".join([token for token, tag in leaves])
+    ### 3. Traverse Tree ###
+    for subtree in tree:
+        if isinstance(subtree, nltk.tree.Tree):
+            # We found a candidate phrase (e.g., "737 Max", "JFK")
+            # Reconstruct the text for this chunk
+            chunk_tokens = [token for token, tag in subtree.leaves()]
+            chunk_text = " ".join(chunk_tokens)
 
-            # Logic: Airport via GPE/ORG
-            # NLTK often flags 3-letter codes as ORGANIZATION or GPE
-            if label in ("GPE", "ORGANIZATION"):
-                # Clean and check length
-                clean_val = entity_text.strip().upper()
-                if len(clean_val) == 3 and clean_val in valid_airports:
-                    entities.append(Entity(entity_type="AIRPORT", value=clean_val))
+            # Check 1: Is this whole chunk an Airport? (e.g. "JFK")
+            clean_val = chunk_text.strip().upper()
+            if clean_val in valid_airports:
+                entities.append(Entity(entity_type="AIRPORT", value=clean_val))
 
-            # Fallback: Sometimes Aircraft names are captured as entities
+            # Check 2: Is this chunk an Aircraft? (e.g. "737 Max")
+            # We check if the chunk text *contains* a known model (relaxed match)
+            # or matches exactly.
             for model in valid_aircraft:
-                if model.upper() in entity_text.upper():
+                # distinct check to avoid partial matches inside words
+                if model.upper() == chunk_text.upper():
+                    entities.append(Entity(entity_type="AIRCRAFT", value=model))
+                elif model.upper() in chunk_text.upper():
+                    # Only accept partial if it covers significant tokens
+                    # (Simple substring check here is usually safe for "737 Max")
                     entities.append(Entity(entity_type="AIRCRAFT", value=model))
 
+            # Check 3: Flight Numbers in chunks (e.g. "BA 123" space separated)
+            # If the chunk is "BA 123", regex on the joined string might catch it
+            flight_match = _extract_flight_code(chunk_text.replace(" ", ""))
+            if flight_match:
+                entities.append(Entity(entity_type="FLIGHT_NUM", value=flight_match))
+
         else:
-            # It's a plain token tuple: (word, tag)
-            token_text, tag = node
+            # It's a single token that didn't fit the grammar (e.g. verbs, simple nouns)
+            token_text, tag = subtree
 
             # Logic: Flight Numbers
-            # Usually tagged as NNP (Proper Noun) or sometimes CD (Cardinal)
             flight_code = _extract_flight_code(token_text)
             if flight_code:
                 entities.append(Entity(entity_type="FLIGHT_NUM", value=flight_code))
-                continue
-
-            # Logic: Aircraft (Token Scan)
-            # Scan individual tokens if they match known models (e.g. "737")
-            for model in valid_aircraft:
-                if model.upper() == token_text.upper():
-                    entities.append(Entity(entity_type="AIRCRAFT", value=model))
-                    continue
 
             # Logic: Dates
-            # NLTK doesn't have a built-in 'DATE' chunker in standard 'ne_chunk'
-            # We look for simple date patterns in tokens
             date_val = _extract_date(token_text)
             if date_val:
                 entities.append(Entity(entity_type="DATE", value=date_val))
+
+            # Logic: Airports (Robust Fallback for bad tags)
+            # Catch 3-letter uppercase codes (e.g. JFK tagged as VB, ORD tagged as NN)
+            # We enforce UPPERCASE matching to avoid common words like "sat", "sun", "mad"
+            if (
+                len(token_text) == 3
+                and token_text.isupper()
+                and token_text in valid_airports
+            ):
+                entities.append(Entity(entity_type="AIRPORT", value=token_text))
 
     return entities
 
