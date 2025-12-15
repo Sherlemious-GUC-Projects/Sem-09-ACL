@@ -2,8 +2,8 @@
 # None
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.utils.types import IntentType, Entity, ProcessedQuery, equals, pretty_print
-from src.ingestion.main import main as ingestion_main
+from utils.types import IntentType, Entity, ProcessedQuery, equals, pretty_print
+from ingestion.main import main as ingestion_main
 
 
 ### ~~~ STATE DEFINITIONS ~~~ ###

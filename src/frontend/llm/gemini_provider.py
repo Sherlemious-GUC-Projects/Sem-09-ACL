@@ -1,12 +1,10 @@
-"""Google Gemini LLM provider implementation."""
-
 import time
 from typing import Dict, Any
 
 import google.generativeai as genai
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from src.components.frontend.llm.base import (
+from frontend.llm.base import (
     LLMProvider,
     LLMConfig,
     LLMResponse,
@@ -14,7 +12,7 @@ from src.components.frontend.llm.base import (
     RateLimitError,
     LLMProviderError,
 )
-from src.components.frontend.config.models import get_model_spec, calculate_cost
+from frontend.config.models import get_model_spec, calculate_cost
 
 
 class GeminiProvider(LLMProvider):
@@ -115,9 +113,9 @@ class GeminiProvider(LLMProvider):
                 raw_response={
                     "candidates": [
                         {
-                            "content": c.content.parts[0].text
-                            if c.content.parts
-                            else "",
+                            "content": (
+                                c.content.parts[0].text if c.content.parts else ""
+                            ),
                             "finish_reason": c.finish_reason,
                             "safety_ratings": [
                                 {"category": r.category, "probability": r.probability}

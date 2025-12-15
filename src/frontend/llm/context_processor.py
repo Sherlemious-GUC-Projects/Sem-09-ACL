@@ -1,7 +1,5 @@
-"""Context processing utilities for LLM input preparation."""
-
 from typing import List, Optional
-from src.utils.types import ContextChunk, RetrievalSource
+from utils.types import ContextChunk, RetrievalSource
 
 
 def deduplicate_contexts(contexts: List[ContextChunk]) -> List[ContextChunk]:

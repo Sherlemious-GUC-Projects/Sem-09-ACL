@@ -1,7 +1,5 @@
-"""Prompt construction utilities for LLM queries."""
-
 from typing import List
-from src.utils.types import ContextChunk
+from utils.types import ContextChunk
 
 
 SYSTEM_PROMPT = """You are an airline flight information assistant for internal analytics at an airline company. You help analyze flight operations, delays, passenger satisfaction, and journey patterns. Your role is to provide accurate, data-driven insights based on the company's knowledge graph."""

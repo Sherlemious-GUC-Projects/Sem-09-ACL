@@ -12,9 +12,9 @@ from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.retrieval.util import load_data
-from src.utils.constant import COLLECTION_NAME, CSV_PATH, USE_OLLAMA, VECTOR_DB_PATH
-from src.utils.types import ContextChunk, Entity, ProcessedQuery, RetrievalSource
+from retrieval.util import load_data
+from utils.constant import COLLECTION_NAME, CSV_PATH, USE_OLLAMA, VECTOR_DB_PATH
+from utils.types import ContextChunk, Entity, ProcessedQuery, RetrievalSource
 
 ### ~~~ CUSTOM TYPES ~~~ ###
 client_t: TypeAlias = chromadb.api.client.Client  # type: ignore[reportAttributeAccessIssue]

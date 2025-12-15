@@ -2,9 +2,9 @@
 # None
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.utils.types import IntentType, Entity, ProcessedQuery
-from src.ingestion import extract_ner as ner, analyise_sentiment as sentiment
-from src.utils.constant import CSV_PATH
+from utils.types import IntentType, Entity, ProcessedQuery
+from ingestion import extract_ner as ner, analyise_sentiment as sentiment
+from utils.constant import CSV_PATH
 
 
 def main(raw_query: str) -> ProcessedQuery:

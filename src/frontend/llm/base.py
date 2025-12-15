@@ -1,5 +1,3 @@
-"""Base classes and interfaces for LLM providers."""
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict
