@@ -9,8 +9,8 @@ import re
 
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.utils.types import Entity, IntentType, EntityType
-from src.ingestion.analyise_sentiment import classifier
+from utils.types import Entity, IntentType, EntityType
+from analyise_sentiment import classifier
 
 
 ### ~~~ TYPE DEFINITIONS ~~~ ###

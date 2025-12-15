@@ -1,5 +1,5 @@
 [project]
-name = "proj"
+name = "src"
 version = "0.1.0"
 description = "Airline Graph-RAG Assistant with Knowledge Graph and LLM Integration"
 readme = "README.md"
@@ -35,3 +35,14 @@ dev = [
 
 [tool.mypy]
 ignore_missing_imports = true
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["proj*"]

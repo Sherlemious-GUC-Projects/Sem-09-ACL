@@ -2,8 +2,8 @@
 from transformers import pipeline
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.utils.types import IntentType
-from src.utils.constant import CONFIDENCE_THRESHOLD, CANDIDATE_LABELS, LABEL_TO_INTENT
+from utils.types import IntentType
+from utils.constant import CONFIDENCE_THRESHOLD, CANDIDATE_LABELS, LABEL_TO_INTENT
 
 ### ~~~ STATE DEFINITIONS ~~~ ###
 classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
