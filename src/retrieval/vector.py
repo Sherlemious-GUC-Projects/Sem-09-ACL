@@ -3,8 +3,7 @@ import argparse
 import hashlib
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, TypeAlias, Union
-
+from typing import Any, Dict, List, Optional, TypeAlias, Union
 import chromadb
 import numpy as np
 import ollama
@@ -18,7 +17,7 @@ from src.utils.constant import COLLECTION_NAME, CSV_PATH, USE_OLLAMA, VECTOR_DB_
 from src.utils.types import ContextChunk, Entity, ProcessedQuery, RetrievalSource
 
 ### ~~~ CUSTOM TYPES ~~~ ###
-client_t: TypeAlias = chromadb.api.client.Client
+client_t: TypeAlias = chromadb.api.client.Client  # type: ignore[reportAttributeAccessIssue]
 tensor_t: TypeAlias = np.ndarray
 
 
@@ -154,7 +153,7 @@ def load_vector_db(
         return 1
 
     print(f"Loading data from {csv_path}...")
-    
+
     # Prepare data
     chunks: List[str] = []
     metadatas: List[Dict[str, Any]] = []
@@ -183,7 +182,7 @@ def load_vector_db(
     # Embed (using batching or loop depending on impl)
     print("Generating embeddings...")
     embeddings_list = []
-    
+
     # We batch process or loop with tqdm here for visibility
     if do_ollama:
         # Ollama might be slow, so we use tqdm loop
@@ -206,7 +205,7 @@ def load_vector_db(
         embeddings=embeddings_list,
         metadatas=metadatas,
     )
-    
+
     print(f"Successfully ingested {len(chunks)} documents.")
     return 0
 
@@ -263,7 +262,7 @@ def query_graph_vector(
 ) -> List[ContextChunk]:
     """
     Retrieves semantically similar records from the vector store.
-    
+
     Args:
         input_query: The query string or ProcessedQuery object.
         k: Number of results to retrieve.
@@ -273,7 +272,7 @@ def query_graph_vector(
     """
     client = get_client()
     collection = client.get_or_create_collection(name=COLLECTION_NAME)
-    
+
     query_text = ""
     metadata_filter = None
 
@@ -290,13 +289,11 @@ def query_graph_vector(
 
     # Query Chroma
     results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=k,
-        where=metadata_filter
+        query_embeddings=[query_embedding], n_results=k, where=metadata_filter
     )
 
     chunks: List[ContextChunk] = []
-    
+
     if not results["ids"]:
         return chunks
 
@@ -309,7 +306,7 @@ def query_graph_vector(
     for i in range(len(ids)):
         # Calculate score (1 - distance approximation)
         score = 1.0 - distances[i] if distances[i] <= 1.0 else 0.0
-        
+
         chunk = ContextChunk(
             id=metas[i].get("id", "unknown"),
             text=docs[i],
@@ -357,7 +354,7 @@ def cli() -> int:
     # Execute modes
     if args.do_drop:
         drop_vector_db(vector_db)
-    
+
     if args.do_load:
         load_vector_db(vector_db)
 
