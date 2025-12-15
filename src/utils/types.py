@@ -1,6 +1,10 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import List, Dict
+
+##########################
+### ~~~ MAIN TYPES ~~~ ###
+##########################
 
 
 class IntentType(str, Enum):
@@ -18,9 +22,20 @@ class IntentType(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
+class EntityType(StrEnum):
+    AIRPORT = "AIRPORT"
+    FLIGHT_NUMBER = "FLIGHT_NUMBER"
+    AIRCRAFT = "AIRCRAFT"
+    DATE = "DATE"
+    GENERATION = "GENERATION"
+    LOYALTY_LEVEL = "LOYALTY_LEVEL"
+    CABIN_CLASS = "CABIN_CLASS"
+    METRIC = "METRIC"
+
+
 @dataclass
 class Entity:
-    entity_type: str  # "AIRPORT", "FLIGHT_NUM", "DATE", "AIRCRAFT"
+    entity_type: EntityType
     value: str
 
 
@@ -43,6 +58,23 @@ class ContextChunk:
     score: float
     source: RetrievalSource
     metadata: Dict
+
+
+############################
+### ~~~ UILITY TYPES ~~~ ###
+############################
+
+
+@dataclass
+class Config:
+    uri: str
+    username: str
+    password: str
+
+
+#################################
+### ~~~ UTILITY FUNCTIONS ~~~ ###
+#################################
 
 
 def pretty_print(object: Entity | ProcessedQuery | ContextChunk) -> None:

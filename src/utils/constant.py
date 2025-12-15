@@ -1,6 +1,7 @@
 from .types import IntentType
 
 CSV_PATH = "dbs/Airline_surveys_sample.csv"
+CONFIG_PATH = "./config.txt"
 CANDIDATE_LABELS = [
     "finding and booking specific flights",
     "analysis of delay causes and punctuality trends",

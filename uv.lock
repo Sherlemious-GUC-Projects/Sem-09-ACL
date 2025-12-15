@@ -1133,6 +1133,7 @@ requires-dist = [
     { name = "anthropic", specifier = ">=0.8.0" },
     { name = "google-generativeai", specifier = ">=0.3.0" },
     { name = "groq", specifier = ">=0.4.0" },
+    { name = "neo4j", specifier = ">=5.0.0" },
     { name = "neo4j", specifier = ">=5.14.0" },
     { name = "nltk", specifier = ">=3.9.2" },
     { name = "pandas", specifier = ">=2.3.3" },
