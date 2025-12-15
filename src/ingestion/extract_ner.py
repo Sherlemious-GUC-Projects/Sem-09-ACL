@@ -7,7 +7,7 @@ from nltk.tag import pos_tag
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
 from src.utils.types import Entity, ProcessedQuery
-from src.components.ingestion.util import (
+from src.ingestion.util import (
     ReferenceData,
     load_reference_data,
     determine_intent,
