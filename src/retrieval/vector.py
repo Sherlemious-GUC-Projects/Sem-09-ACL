@@ -92,7 +92,11 @@ def _format_record(row: pd.Series) -> str:
     Formats a CSV row into the target sentence structure.
 
     Template:
-    "A {loyalty} passenger on flight {flight_num} in {class} class experienced a delay of {delay} minutes and rated the food as {food_score}/5."
+    "Flight {flight_number} operates from {origin_station_code} to {destination_station_code} as a {number_of_legs}-leg journey using {fleet_type_description} aircraft.
+    The route covers {actual_flown_miles} miles and serves passengers in {passenger_class} class.
+    Typical arrival delay is {arrival_delay_minutes} minutes.
+    Passenger feedback includes a food satisfaction score of {food_satisfaction_score}/5, submitted under feedback ID {feedback_ID}.
+    This record reflects a {generation} passenger with {loyalty_program_level} loyalty status."
 
     Args:
         row: A pandas Series representing a single row from the dataframe.
@@ -101,16 +105,30 @@ def _format_record(row: pd.Series) -> str:
         A formatted string description of the passenger's experience.
     """
     record = {
-        "loyalty": row.get("loyalty_program_level", "Unknown"),
-        "flight_num": row.get("flight_number", "Unknown"),
-        "class": row.get("passenger_class", "Unknown"),
-        "delay": row.get("arrival_delay_minutes", 0),
-        "food_score": row.get("food_satisfaction_score", 0),
+        "flight_number": row.get("flight_number", "Unknown"),
+        "origin_station_code": row.get("origin_station_code", "Unknown"),
+        "destination_station_code": row.get("destination_station_code", "Unknown"),
+        "number_of_legs": row.get("number_of_legs", "Unknown"),
+        "fleet_type_description": row.get("fleet_type_description", "Unknown"),
+        "actual_flown_miles": row.get("actual_flown_miles", 0),
+        "passenger_class": row.get("passenger_class", "Unknown"),
+        "arrival_delay_minutes": row.get("arrival_delay_minutes", 0),
+        "food_satisfaction_score": row.get("food_satisfaction_score", 0),
+        "feedback_ID": row.get("feedback_ID", "Unknown"),
+        "generation": row.get("generation", "Unknown"),
+        "loyalty_program_level": row.get("loyalty_program_level", "Unknown"),
     }
     return (
-        f"A {record['loyalty']} passenger on flight {record['flight_num']} "
-        f"in {record['class']} class experienced a delay of {record['delay']} "
-        f"minutes and rated the food as {record['food_score']}/5."
+        f"Flight {record['flight_number']} operates from {record['origin_station_code']} "
+        f"to {record['destination_station_code']} as a {record['number_of_legs']}-leg journey "
+        f"using {record['fleet_type_description']} aircraft. "
+        f"The route covers {record['actual_flown_miles']} miles and serves passengers in "
+        f"{record['passenger_class']} class. "
+        f"Typical arrival delay is {record['arrival_delay_minutes']} minutes. "
+        f"Passenger feedback includes a food satisfaction score of {record['food_satisfaction_score']}/5, "
+        f"submitted under feedback ID {record['feedback_ID']}. "
+        f"This record reflects a {record['generation']} passenger with "
+        f"{record['loyalty_program_level']} loyalty status."
     )
 
 
