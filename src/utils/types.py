@@ -20,7 +20,7 @@ class IntentType(str, Enum):
 
 @dataclass
 class Entity:
-    entity_type: str  # "AIRPORT", "FLIGHT_NUM", "DATE", "AIRCRAFT", "METRIC"
+    entity_type: str  # "AIRPORT", "FLIGHT_NUM", "DATE", "AIRCRAFT"
     value: str
 
 
@@ -43,3 +43,31 @@ class ContextChunk:
     score: float
     source: RetrievalSource
     metadata: Dict
+
+
+def pretty_print(object: Entity | ProcessedQuery | ContextChunk) -> None:
+    """"""
+    attrs = vars(object)
+    print(f"{object.__class__.__name__}:")
+    for key, value in attrs.items():
+        print(f"  {key}: {value}")
+    print()
+
+
+def equals(
+    obj1: Entity | ProcessedQuery | ContextChunk,
+    obj2: Entity | ProcessedQuery | ContextChunk,
+) -> bool:
+    """"""
+    if obj1.__class__ != obj2.__class__:
+        return False
+
+    if isinstance(obj1, ProcessedQuery):
+        return (
+            obj1.original_text == obj2.original_text
+            and obj1.intent == obj2.intent
+            and sorted(obj1.entities, key=lambda e: (e.entity_type, e.value))
+            == sorted(obj2.entities, key=lambda e: (e.entity_type, e.value))
+        )
+
+    return vars(obj1) == vars(obj2)
