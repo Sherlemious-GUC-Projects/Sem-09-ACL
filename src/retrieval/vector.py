@@ -13,12 +13,9 @@ import os
 ### ~~~ LOCAL IMPORTS ~~~ ###
 from src.utils.types import ContextChunk, Entity, ProcessedQuery, RetrievalSource
 from src.retrieval.util import load_data
-from src.utils.constant import CSV_PATH
+from src.utils.constant import CSV_PATH, VECTOR_DB_PATH, COLLECTION_NAME, USE_OLLAMA
 
 ### ~~~ STATE DEFINITIONS ~~~ ###
-VECTOR_DB_PATH = "./chroma_db"
-COLLECTION_NAME = "airline_reviews"
-USE_OLLAMA = False
 
 
 ### ~~~ FUNCTION DEFINITIONS ~~~ ###
