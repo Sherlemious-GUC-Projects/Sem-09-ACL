@@ -1,20 +1,30 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
 import re
 import nltk
-from typing import List
+from typing import List, FrozenSet
 from nltk.tokenize import word_tokenize
 from nltk.tag import pos_tag
+from dataclasses import dataclass
+import pandas as pd
+
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.utils.types import Entity, ProcessedQuery
-from src.ingestion.util import (
-    ReferenceData,
-    load_reference_data,
-    determine_intent,
-)
+from src.utils.types import Entity, ProcessedQuery, IntentType
 
 ### ~~~ CONFIGURATION ~~~ ###
 CSV_PATH = "dbs/Airline_surveys_sample.csv"
+
+
+### ~~~ TYPE DEFINITIONS ~~~ ###
+@dataclass(frozen=True)
+class ReferenceData:
+    """
+    Immutable container for ground truth data derived from the CSV.
+    Used to pass reference sets (airports, aircraft) to pure functions.
+    """
+
+    airports: FrozenSet[str]
+    aircraft_models: FrozenSet[str]
 
 
 ### ~~~ INITIALIZATION ~~~ ###
@@ -35,6 +45,27 @@ _ensure_resources()
 
 
 ### ~~~ PURE FUNCTIONS: EXTRACTION ~~~ ###
+def load_reference_data(csv_path: str) -> ReferenceData:
+    """
+    Loads reference data (airports, aircraft models) from a CSV file.
+    """
+    df = pd.read_csv(csv_path)
+
+    # Column mapping based on actual CSV header:
+    # origin_station_code -> Airports
+    # fleet_type_description -> Aircraft
+
+    # We take the union of Origin and Destination to ensure we capture all valid airports
+    # (Checking both ensures coverage even if some airports only appear as destinations)
+    origins = set(df["origin_station_code"].dropna().unique())
+    dests = set(df["destination_station_code"].dropna().unique())
+    airports = frozenset(origins | dests)
+
+    aircraft_models = frozenset(df["fleet_type_description"].dropna().unique())
+
+    return ReferenceData(airports=airports, aircraft_models=aircraft_models)
+
+
 def extract_structured_entities(text: str) -> List[Entity]:
     """
     Extracts entities with strict, well-defined formats using Regex.
@@ -134,6 +165,44 @@ def validate_and_map_entities(
                 break
 
     return valid_entities
+
+
+def determine_intent(text: str, entities: List[Entity]) -> IntentType:
+    """
+    Rule-based intent classification based on text keywords and present entities.
+
+    Args:
+        text: The raw user query.
+        entities: List of entities already extracted from the query.
+
+    Returns:
+        IntentType: The classified intent.
+    """
+    text_lower = text.lower()
+    entity_types = {e.entity_type for e in entities}
+
+    # Boolean flags for readability
+    has_metrics = "METRIC" in entity_types
+    has_airports = "AIRPORT" in entity_types
+
+    # Priority 1: Statistical/Aggregate queries
+    if "route" in text_lower or "busiest" in text_lower:
+        return IntentType.ROUTE_STATS
+
+    # Priority 2: Analysis/Reasoning queries
+    if "why" in text_lower and ("late" in text_lower or "delay" in text_lower):
+        return IntentType.DELAY_ANALYSIS
+
+    if has_metrics and "food" in text_lower:
+        return IntentType.SATISFACTION_METRICS
+
+    # Priority 3: Search queries (requires specific entities usually)
+    if has_airports and (
+        "flight" in text_lower or "show" in text_lower or "find" in text_lower
+    ):
+        return IntentType.FLIGHT_SEARCH
+
+    return IntentType.UNKNOWN
 
 
 ### ~~~ PIPELINE ~~~ ###
