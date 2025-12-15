@@ -26,6 +26,7 @@ dependencies = [
     "tenacity>=8.2.0",
     "plotly>=5.18.0",
     "neo4j>=5.14.0",
+    "types-pyyaml>=6.0.12.20250915",
 ]
 
 [dependency-groups]

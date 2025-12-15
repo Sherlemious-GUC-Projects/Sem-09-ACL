@@ -1,12 +1,10 @@
-"""Anthropic Claude LLM provider implementation."""
-
 import time
 from typing import Dict, Any
 
 from anthropic import Anthropic, APIError, RateLimitError as AnthropicRateLimitError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from src.components.frontend.llm.base import (
+from frontend.llm.base import (
     LLMProvider,
     LLMConfig,
     LLMResponse,
@@ -14,7 +12,7 @@ from src.components.frontend.llm.base import (
     RateLimitError,
     LLMProviderError,
 )
-from src.components.frontend.config.models import get_model_spec, calculate_cost
+from frontend.config.models import get_model_spec, calculate_cost
 
 
 class ClaudeProvider(LLMProvider):

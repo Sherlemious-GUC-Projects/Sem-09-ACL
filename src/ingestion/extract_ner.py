@@ -10,7 +10,7 @@ import re
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
 from utils.types import Entity, IntentType, EntityType
-from analyise_sentiment import classifier
+from ingestion.analyise_sentiment import classifier
 
 
 ### ~~~ TYPE DEFINITIONS ~~~ ###

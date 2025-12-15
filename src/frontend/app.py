@@ -1,15 +1,15 @@
 from typing import List
 import streamlit as st
 
-from src.utils.types import ContextChunk
-from src.components.frontend.llm.base import LLMConfig, LLMResponse, LLMProviderError
-from src.components.frontend.llm.context_processor import process_contexts
-from src.components.frontend.llm.prompt_builder import build_prompt
-from src.components.frontend.llm.gemini_provider import GeminiProvider
-from src.components.frontend.llm.claude_provider import ClaudeProvider
-from src.components.frontend.llm.groq_provider import GroqProvider
-from src.components.frontend.config.settings import get_config
-from src.components.frontend.config.models import get_model_spec
+from utils.types import ContextChunk
+from frontend.llm.base import LLMConfig, LLMResponse, LLMProviderError
+from frontend.llm.context_processor import process_contexts
+from frontend.llm.prompt_builder import build_prompt
+from frontend.llm.gemini_provider import GeminiProvider
+from frontend.llm.claude_provider import ClaudeProvider
+from frontend.llm.groq_provider import GroqProvider
+from frontend.config.settings import get_config
+from frontend.config.models import get_model_spec
 
 
 def mock_generate_response(user_query: str, context: List[ContextChunk]) -> str:
@@ -139,10 +139,10 @@ def render_ui():
         st.session_state.total_cost = 0.0
 
     # Import retrieval modules
-    from src.components.ingestion.processor import mock_process_user_query
-    from src.components.retrieval.cypher import mock_query_graph_cypher
-    from src.components.retrieval.vector import mock_query_graph_vector
-    from src.components.frontend.config.models import get_all_model_names
+    from ingestion.main import main as mock_process_user_query
+    from retrieval.graph_retrieval import query_graph_cypher as mock_query_graph_cypher
+    from retrieval.vector import query_graph_vector as mock_query_graph_vector
+    from frontend.config.models import get_all_model_names
 
     # Header
     st.title("✈️ Airline Flight Insights Assistant")
@@ -204,7 +204,7 @@ def render_ui():
         # API Key status
         st.divider()
         st.subheader("🔑 API Keys")
-        from src.components.frontend.config.settings import validate_api_keys
+        from frontend.config.settings import validate_api_keys
 
         api_status = validate_api_keys()
         for provider, available in api_status.items():

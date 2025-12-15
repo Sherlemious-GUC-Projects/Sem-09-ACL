@@ -1,5 +1,3 @@
-"""Model specifications and pricing information for all supported LLM providers."""
-
 from dataclasses import dataclass
 from typing import Dict
 
