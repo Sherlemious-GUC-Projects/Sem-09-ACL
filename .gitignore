@@ -1,4 +1,11 @@
 config.txt
+config.yaml
 Neo4j*
 *.sqlite3
 chroma_db/*
+.claude
+.env
+.env.local
+.vscode
+*.pyc
+*.egg-info/
