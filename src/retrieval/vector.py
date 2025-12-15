@@ -1,51 +1,105 @@
 ### ~~~ GLOBAL IMPORTS ~~~ ###
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from typing import Any, Dict, List, Optional, Union
-from langchain_core.embeddings import Embeddings
-from langchain_core.documents import Document
-from langchain_ollama import OllamaEmbeddings
-from langchain_chroma import Chroma
-from dataclasses import asdict
-import pandas as pd
+import argparse
+import hashlib
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple, TypeAlias, Union
+
 import chromadb
-import os
+import numpy as np
+import ollama
+import pandas as pd
+from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.utils.types import ContextChunk, Entity, ProcessedQuery, RetrievalSource
 from src.retrieval.util import load_data
-from src.utils.constant import CSV_PATH, VECTOR_DB_PATH, COLLECTION_NAME, USE_OLLAMA
+from src.utils.constant import COLLECTION_NAME, CSV_PATH, USE_OLLAMA, VECTOR_DB_PATH
+from src.utils.types import ContextChunk, Entity, ProcessedQuery, RetrievalSource
+
+### ~~~ CUSTOM TYPES ~~~ ###
+client_t: TypeAlias = chromadb.api.client.Client
+tensor_t: TypeAlias = np.ndarray
+
 
 ### ~~~ STATE DEFINITIONS ~~~ ###
+class Modes(Enum):
+    LOAD = "load"
+    DROP = "drop"
+    QUERY = "query"
+
+
+@dataclass
+class VectorDb:
+    client: client_t
+    db_name: str
 
 
 ### ~~~ FUNCTION DEFINITIONS ~~~ ###
-def get_embedding_model(use_ollama: bool = USE_OLLAMA) -> Embeddings:
+
+
+def get_client(path: str = VECTOR_DB_PATH) -> client_t:
     """
-    Returns the configured embedding model.
+    Initializes and returns the ChromaDB persistent client.
+
     Args:
-        use_ollama: Boolean flag to determine whether to use Ollama embeddings.
-                    Defaults to the global USE_OLLAMA constant.
+        path: Path to the persistence directory.
+
     Returns:
-        An instance of an Embeddings model (OllamaEmbeddings or HuggingFaceEmbeddings).
+        ChromaDB Client instance.
     """
-    if use_ollama:
-        return OllamaEmbeddings(model="all-minilm")
+    return chromadb.PersistentClient(path=path)
+
+
+def embed(
+    text: Union[str, List[str]], do_ollama: bool = USE_OLLAMA
+) -> Union[tensor_t, List[tensor_t]]:
+    """
+    Embed the chunks using SentenceTransformer or Ollama.
+
+    Args:
+        text: The input text or list of texts to be embedded.
+        do_ollama: Whether to use Ollama for embeddings.
+
+    Returns:
+        Embeddings as a numpy array or list of arrays.
+    """
+    model_name: str = (
+        "chroma/all-minilm-l6-v2-f32:latest" if do_ollama else "all-MiniLM-L6-v2"
+    )
+
+    if do_ollama:
+        # Ollama handling
+        if isinstance(text, str):
+            response = ollama.embeddings(model=model_name, prompt=text)
+            return np.array(response["embedding"])
+        else:
+            # Batch handling for Ollama (looping needed if API doesn't support batch list)
+            embeddings = []
+            for t in text:
+                response = ollama.embeddings(model=model_name, prompt=t)
+                embeddings.append(np.array(response["embedding"]))
+            return embeddings
     else:
-        # Uses sentence-transformers/all-MiniLM-L6-v2 locally
-        return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        # SentenceTransformer handling
+        model = SentenceTransformer(model_name)
+        embeddings = model.encode(text, show_progress_bar=False)
+        return np.array(embeddings)
 
 
 def _format_record(row: pd.Series) -> str:
     """
     Formats a CSV row into the target sentence structure.
+
     Template:
     "A {loyalty} passenger on flight {flight_num} in {class} class experienced a delay of {delay} minutes and rated the food as {food_score}/5."
+
     Args:
         row: A pandas Series representing a single row from the dataframe.
+
     Returns:
         A formatted string description of the passenger's experience.
     """
-    # Mapping based on KR.md vs Template
     record = {
         "loyalty": row.get("loyalty_program_level", "Unknown"),
         "flight_num": row.get("flight_number", "Unknown"),
@@ -60,28 +114,37 @@ def _format_record(row: pd.Series) -> str:
     )
 
 
-def _load_and_process_data(csv_path: str) -> List[Document]:
+def load_vector_db(
+    vector_db: VectorDb, csv_path: str = CSV_PATH, do_ollama: bool = USE_OLLAMA
+) -> int:
     """
-    Reads the CSV and converts rows to LangChain Documents.
+    Loads up the embeddings into a vector database from the CSV data.
+    Get or create a collection based on whether it exists or not.
 
     Args:
-        csv_path: The file path to the CSV data.
+        vector_db: The dataclass with all the info needed to get the collection.
+        csv_path: The path to the CSV data.
+        do_ollama: Whether to use Ollama for embeddings.
 
     Returns:
-        A list of LangChain Document objects containing processed text and metadata.
+        0 for success.
     """
     try:
         df = load_data(csv_path)
     except FileNotFoundError:
         print(f"WARNING: CSV not found at {csv_path}. Skipping ingestion.")
-        return []
+        return 1
 
-    documents: List[Document] = []
+    print(f"Loading data from {csv_path}...")
+    
+    # Prepare data
+    chunks: List[str] = []
+    metadatas: List[Dict[str, Any]] = []
 
     for _, row in df.iterrows():
         text = _format_record(row)
+        chunks.append(text)
 
-        # Construct Metadata
         metadata = {
             "id": str(row.get("feedback_ID", row.get("record_locator", "unknown"))),
             "flight_number": str(row.get("flight_number", "")),
@@ -91,53 +154,72 @@ def _load_and_process_data(csv_path: str) -> List[Document]:
             "loyalty": str(row.get("loyalty_program_level", "")),
             "class": str(row.get("passenger_class", "")),
         }
+        metadatas.append(metadata)
 
-        documents.append(Document(page_content=text, metadata=metadata))
+    # Generate IDs
+    # Include index to ensure uniqueness for identical texts
+    keys: List[str] = [
+        hashlib.md5(f"{c}_{i}".encode()).hexdigest() for i, c in enumerate(chunks)
+    ]
 
-    return documents
+    # Embed (using batching or loop depending on impl)
+    print("Generating embeddings...")
+    embeddings_list = []
+    
+    # We batch process or loop with tqdm here for visibility
+    if do_ollama:
+        # Ollama might be slow, so we use tqdm loop
+        for c in tqdm(chunks, desc="Embedding with Ollama"):
+            embeddings_list.append(embed(c, do_ollama=True))
+    else:
+        # SentenceTransformer handles batching well, but let's show progress
+        # embed() handles the batch if passed a list
+        embeddings_list = list(embed(chunks, do_ollama=False))
 
+    # Get collection
+    collection = vector_db.client.get_or_create_collection(name=vector_db.db_name)
 
-def get_vector_store(
-    persist_directory: str = VECTOR_DB_PATH, collection_name: str = COLLECTION_NAME
-) -> Chroma:
-    """
-    Initializes and returns the Chroma vector store.
-    If the collection is empty, it attempts to load data from the CSV.
-    Args:
-        persist_directory: Directory where the vector store is persisted.
-        collection_name: Name of the Chroma collection.
-    Returns:
-        An initialized Chroma vector store instance.
-    """
-    embedding_function = get_embedding_model()
-
-    vector_store = Chroma(
-        collection_name=collection_name,
-        embedding_function=embedding_function,
-        persist_directory=persist_directory,
+    # Add to collection
+    # Chroma handles batching, but we can pass all at once if memory allows
+    print("Adding to vector store...")
+    collection.add(
+        ids=keys,
+        documents=chunks,
+        embeddings=embeddings_list,
+        metadatas=metadatas,
     )
+    
+    print(f"Successfully ingested {len(chunks)} documents.")
+    return 0
 
-    # Simple check: If empty, ingest
-    # Note: This checks the number of IDs in the underlying collection
-    if not vector_store.get()["ids"]:
-        print("Vector store is empty. Ingesting data...")
-        docs = _load_and_process_data(CSV_PATH)
-        if docs:
-            # Add in batches to avoid hitting limits if necessary,
-            # though Chroma handles reasonable sizes well.
-            vector_store.add_documents(docs)
-            print(f"Ingested {len(docs)} documents.")
 
-    return vector_store
+def drop_vector_db(vector_db: VectorDb) -> int:
+    """
+    Drops the collection from the vector db.
+
+    Args:
+        vector_db: The dataclass with all the info needed to get the collection.
+
+    Returns:
+        0 for success.
+    """
+    try:
+        vector_db.client.delete_collection(name=vector_db.db_name)
+        print(f"Collection '{vector_db.db_name}' deleted.")
+    except Exception as e:
+        print(f"Error deleting collection: {e}")
+    return 0
 
 
 def _build_metadata_filter(entities: List[Entity]) -> Optional[Dict[str, Any]]:
     """
     Constructs a ChromaDB metadata filter from extracted entities.
+
     Args:
         entities: A list of Entity objects extracted from the query.
+
     Returns:
-        A dictionary representing the metadata filter for ChromaDB, or None if no relevant entities are found.
+        A dictionary representing the metadata filter for ChromaDB.
     """
     filters = []
 
@@ -145,10 +227,6 @@ def _build_metadata_filter(entities: List[Entity]) -> Optional[Dict[str, Any]]:
         if entity.entity_type == "FLIGHT_NUM":
             filters.append({"flight_number": entity.value})
         elif entity.entity_type == "AIRPORT":
-            # Airports could be origin or destination.
-            # Chroma $or syntax for same field is easy, but across fields requires $or at top level
-            # For simplicity, let's search both or strict match if we knew context.
-            # Here we'll try to match either origin OR destination
             filters.append(
                 {"$or": [{"origin": entity.value}, {"destination": entity.value}]}
             )
@@ -167,16 +245,17 @@ def query_graph_vector(
 ) -> List[ContextChunk]:
     """
     Retrieves semantically similar records from the vector store.
-    Supports structured filtering if ProcessedQuery is provided.
+    
     Args:
-        input_query: The query string or a ProcessedQuery object containing the query and entities.
-        k: The number of results to retrieve.
+        input_query: The query string or ProcessedQuery object.
+        k: Number of results to retrieve.
 
     Returns:
-        A list of ContextChunk objects representing the retrieved documents.
+        List of ContextChunk objects.
     """
-    store = get_vector_store()
-
+    client = get_client()
+    collection = client.get_or_create_collection(name=COLLECTION_NAME)
+    
     query_text = ""
     metadata_filter = None
 
@@ -186,43 +265,95 @@ def query_graph_vector(
     else:
         query_text = input_query
 
-    # Perform Similarity Search
-    # Note: If metadata_filter is complex, ensure Chroma version supports it.
-    results = store.similarity_search_with_score(
-        query_text, k=k, filter=metadata_filter
+    # Embed the query
+    query_embedding = embed(query_text, do_ollama=USE_OLLAMA)
+    if isinstance(query_embedding, np.ndarray):
+        query_embedding = query_embedding.tolist()
+
+    # Query Chroma
+    results = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=k,
+        where=metadata_filter
     )
 
-    chunks = []
-    for doc, score in results:
-        # Chroma distance score: lower is better (0=exact).
-        # Convert to similarity (1 / (1 + distance)) or just 1 - distance if normalized.
-        # Often Chroma returns L2 distance.
-        # For interface consistency (0.0-1.0), let's approximate:
-        # similarity = 1 - score (if score is cosine distance)
-        # We'll stick to raw score or a simple inversion for relevance.
-        relevance = 1.0 - score if score <= 1.0 else 0.0
+    chunks: List[ContextChunk] = []
+    
+    if not results["ids"]:
+        return chunks
 
+    # Unpack results (list of lists)
+    ids = results["ids"][0]
+    docs = results["documents"][0]
+    metas = results["metadatas"][0]
+    distances = results["distances"][0] if results["distances"] else [0.0] * len(ids)
+
+    for i in range(len(ids)):
+        # Calculate score (1 - distance approximation)
+        score = 1.0 - distances[i] if distances[i] <= 1.0 else 0.0
+        
         chunk = ContextChunk(
-            id=doc.metadata.get("id", "unknown"),
-            text=doc.page_content,
-            score=round(relevance, 4),
+            id=metas[i].get("id", "unknown"),
+            text=docs[i],
+            score=round(score, 4),
             source=RetrievalSource.VECTOR,
-            metadata=doc.metadata,
+            metadata=metas[i],
         )
         chunks.append(chunk)
 
     return chunks
 
 
-def main() -> None:
+def cli() -> int:
     """
-    Main function for standalone execution and testing.
+    Quick CLI function to do everything.
     """
-    print("Initializing Vector DB...")
-    vs = get_vector_store()
-    print(f"Vector DB contains {len(vs.get()['ids'])} documents.")
+    vector_db = VectorDb(client=get_client(), db_name=COLLECTION_NAME)
+
+    parser = argparse.ArgumentParser(description="RAG Vector DB CLI")
+    parser.add_argument(
+        "-l",
+        "--do_load",
+        action="store_true",
+        help="Flag to load the vector database",
+    )
+    parser.add_argument(
+        "-d",
+        "--do_drop",
+        action="store_true",
+        help="Flag to drop the vector database",
+    )
+    parser.add_argument(
+        "-q",
+        "--do_query",
+        type=str,
+        help="Query string to retrieve from the vector database",
+    )
+    args = parser.parse_args()
+
+    # Validate arguments
+    if not (args.do_drop or args.do_load or args.do_query):
+        parser.print_help()
+        return 1
+
+    # Execute modes
+    if args.do_drop:
+        drop_vector_db(vector_db)
+    
+    if args.do_load:
+        load_vector_db(vector_db)
+
+    if args.do_query:
+        print(f"Querying: {args.do_query}")
+        chunks = query_graph_vector(args.do_query)
+        for i, chunk in enumerate(chunks):
+            print(f"--- Result {i + 1} (Score: {chunk.score}) ---")
+            print(chunk.text)
+            print()
+
+    return 0
 
 
 ### ~~~ SCRIPT EXECUTION ~~~ ###
 if __name__ == "__main__":
-    main()
+    cli()

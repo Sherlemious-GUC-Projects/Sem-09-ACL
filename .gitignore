@@ -1,3 +1,4 @@
 config.txt
 Neo4j*
 *.sqlite3
+chroma_db/*
