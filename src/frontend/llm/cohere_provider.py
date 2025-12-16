@@ -101,13 +101,13 @@ class CohereProvider(LLMProvider):
 
             return LLMResponse(
                 text=text,
+                model=self.model_name,
+                tokens_used=total_tokens,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
-                total_tokens=total_tokens,
-                model=self.model_name,
-                provider="cohere",
+                cost_usd=cost,
                 response_time_ms=response_time_ms,
-                cost=cost,
+                raw_response={"message": response.message, "usage": response.usage},
             )
 
         except cohere.TooManyRequestsError as e:
