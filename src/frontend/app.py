@@ -77,7 +77,7 @@ def generate_response(
     user_query: str,
     context: List[ContextChunk],
     model_name: str = "gemini-1.5-flash",
-    config: LLMConfig = None,
+    config: LLMConfig | None = None,
 ) -> LLMResponse:
     """
     Generate LLM response using provided context.
