@@ -18,14 +18,6 @@ class ModelSpec:
 # Pricing as of December 2024 - update periodically
 MODEL_SPECS: Dict[str, ModelSpec] = {
     # Google Gemini Models (2025)
-    "gemini-3-pro-preview": ModelSpec(
-        name="gemini-3-pro-preview",
-        provider="gemini",
-        context_window=1_048_576,
-        input_price_per_1k=0.0025,  # Estimated pricing
-        output_price_per_1k=0.01,  # Estimated pricing
-        display_name="Gemini 3 Pro Preview (Most Intelligent)",
-    ),
     "gemini-2.5-flash": ModelSpec(
         name="gemini-2.5-flash",
         provider="gemini",
@@ -42,31 +34,7 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         output_price_per_1k=0.0004,
         display_name="Gemini 2.5 Flash-Lite (Ultra Fast)",
     ),
-    "gemini-2.5-pro": ModelSpec(
-        name="gemini-2.5-pro",
-        provider="gemini",
-        context_window=1_048_576,
-        input_price_per_1k=0.0015,
-        output_price_per_1k=0.006,
-        display_name="Gemini 2.5 Pro (Advanced Thinking)",
-    ),
-    # Anthropic Claude Models
-    "claude-3-5-haiku-20241022": ModelSpec(
-        name="claude-3-5-haiku-20241022",
-        provider="claude",
-        context_window=200_000,
-        input_price_per_1k=0.00025,
-        output_price_per_1k=0.00125,
-        display_name="Claude 3.5 Haiku (Fast & Cheap)",
-    ),
-    "claude-3-5-sonnet-20241022": ModelSpec(
-        name="claude-3-5-sonnet-20241022",
-        provider="claude",
-        context_window=200_000,
-        input_price_per_1k=0.003,
-        output_price_per_1k=0.015,
-        display_name="Claude 3.5 Sonnet (Balanced)",
-    ),
+    
     # Groq Models (Free tier available)
     "llama-3.1-8b-instant": ModelSpec(
         name="llama-3.1-8b-instant",
