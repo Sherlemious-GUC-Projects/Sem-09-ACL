@@ -26,24 +26,14 @@ INSTRUCTIONS:
    - "Supported": The statement is explicitly confirmed by the context.
    - "Contradicted": The context explicitly contradicts the statement.
    - "Not Mentioned": The statement is not present in the context.
-3. Calculate a faithfulness score: (Number of Supported Statements) / (Total Number of Statements).
+3. Calculate a faithfulness score: (Number of Supported Statements) / (Total Number of Statements) in decimal form.
    - If there are no statements, the score is 1.0 (trivial truth).
 
 OUTPUT FORMAT:
 Return a valid JSON object with the following structure:
-{
-    "statements": [
-        {
-            "text": "Statement 1 text",
-            "verdict": "Supported" | "Contradicted" | "Not Mentioned",
-            "reason": "Reasoning here"
-        }
-    ],
-    "faithfulness_score": 0.8,
-    "reasoning": "Overall explanation"
-}
+{{ "statements": [ {{ "text": "Statement 1 text", "verdict": "Supported" | "Contradicted" | "Not Mentioned", "reason": "Reasoning here" }} ], "faithfulness_score": 0.8, "reasoning": "Overall explanation" }}
 
-RETURN ONLY THE JSON STRING. NO MARKDOWN.
+RETURN ONLY THE JSON STRING. NO MARKDOWN. NO NEW LINES AND NO FRACTIONS ONLY DECIMALS.
 """
 
 ANSWER_RELEVANCE_PROMPT_TEMPLATE = """
@@ -56,18 +46,15 @@ ANSWER:
 {answer}
 
 INSTRUCTIONS:
-Rate the relevance of the answer on a scale of 1 to 5.
-1: Completely irrelevant.
-5: Perfectly addresses the question.
+Rate the relevance of the answer on a scale of 0 to 1.
+0: Completely irrelevant.
+1: Perfectly addresses the question.
 
 OUTPUT FORMAT:
 Return a valid JSON object:
-{
-    "score": 4,
-    "reasoning": "Explanation of the score"
-}
+{{ "score": 0.8, "reasoning": "Explanation of the score" }}
 
-RETURN ONLY THE JSON STRING. NO MARKDOWN.
+RETURN ONLY THE JSON STRING. NO MARKDOWN. NO NEW LINES AND NO FRACTIONS ONLY DECIMALS.
 """
 
 CONTEXT_RELEVANCE_PROMPT_TEMPLATE = """
@@ -80,18 +67,15 @@ RETRIEVED CONTEXT:
 {context}
 
 INSTRUCTIONS:
-Rate the relevance of the retrieved context on a scale of 1 to 5.
-1: Context contains no relevant information.
-5: Context contains all necessary information to answer the question perfectly.
+Rate the relevance of the retrieved context on a scale of 0 to 1.
+0: Context contains no relevant information.
+1: Context contains all necessary information to answer the question perfectly.
 
 OUTPUT FORMAT:
 Return a valid JSON object:
-{
-    "score": 3,
-    "reasoning": "Explanation of the score"
-}
+{{ "score": 0.6, "reasoning": "Explanation of the score" }}
 
-RETURN ONLY THE JSON STRING. NO MARKDOWN.
+RETURN ONLY THE JSON STRING. NO MARKDOWN. NO NEW LINES AND NO FRACTIONS ONLY DECIMALS.
 """
 
 ### ~~~ FUNCTION DEFINITIONS ~~~ ###
@@ -131,7 +115,9 @@ class JudgeProvider:
         try:
             return json.loads(clean_text)
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse JSON from Judge: {text}")
+            logger.error(
+                f"Failed to parse JSON from Judge. Raw response:\n{text}\nError: {e}"
+            )
             # Fallback: try to find the first '{' and last '}'
             try:
                 start = clean_text.find("{")
@@ -165,6 +151,7 @@ class JudgeProvider:
         prompt = ANSWER_RELEVANCE_PROMPT_TEMPLATE.format(
             question=question, answer=answer
         )
+
         response = self.provider.generate(prompt, self.config)
 
         try:

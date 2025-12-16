@@ -5,6 +5,7 @@ import csv
 import logging
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
+import time
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
 from evaluation.types import (
@@ -123,7 +124,7 @@ def initialize_llm_providers(target_llms: Dict[str, Any]) -> Dict[str, Any]:
     return providers
 
 
-def run_evaluation():
+def run_evaluation() -> None:
     """Orchestrates the entire evaluation process."""
     test_cases = load_test_cases(GOLD_STANDARD_PATH)
     if not test_cases:
@@ -162,6 +163,7 @@ def run_evaluation():
     )
 
     for i, test_case in enumerate(test_cases):
+        time.sleep(60)  # To avoid rate limits between test cases
         logger.info(
             f"\n--- Running Test Case {i + 1}/{len(test_cases)}: {test_case.question} ---"
         )
@@ -269,7 +271,8 @@ def run_evaluation():
                         )
                         judge_metrics_obj.context_relevance_score = (
                             judge_provider.evaluate_context_relevance(
-                                [test_case.question], retrieved_context_chunks
+                                test_case.question,
+                                [c.text for c in retrieved_context_chunks],
                             )
                         )  # Pass original question to judge for context relevance
                     except Exception as e:
