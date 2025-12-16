@@ -98,7 +98,7 @@ RETURN ONLY THE JSON STRING. NO MARKDOWN.
 
 
 class JudgeProvider:
-    def __init__(self, api_key: str, model_name: str = "llama-3.3-70b-versatile"):
+    def __init__(self, api_key: str, model_name: str = "llama-3.1-70b-versatile"):
         """
         Initialize the JudgeProvider with a Groq model.
         Using a large model (70b) is recommended for better reasoning.

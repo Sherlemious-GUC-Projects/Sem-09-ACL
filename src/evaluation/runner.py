@@ -21,7 +21,6 @@ from evaluation.metrics import calculate_semantic_similarity
 # LLM Providers from frontend
 from frontend.llm.base import LLMConfig, APIKeyMissingError, LLMProviderError
 from frontend.llm.gemini_provider import GeminiProvider
-from frontend.llm.claude_provider import ClaudeProvider
 from frontend.llm.groq_provider import GroqProvider
 
 # Retrieval modules
@@ -58,26 +57,26 @@ CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
 # Target Models for evaluation
 # Ensure these match the model_name expected by their respective providers
 TARGET_LLMS = {
-    "groq_llama3_8b": (
+    "groq_llama_3_1_8b": (
         "llama-3.1-8b-instant",
         GroqProvider,
         GROQ_API_KEY,
-    ),  # Example Groq model
-    "gemini_1_5_pro": (
-        "gemini-1.5-flash-001",
+    ),
+    "gemini_2_5_flash": (
+        "gemini-2.5-flash",
         GeminiProvider,
         GEMINI_API_KEY,
-    ),  # Example Gemini model
-    "claude_3_opus": (
-        "claude-3-opus-20240229",
-        ClaudeProvider,
-        CLAUDE_API_KEY,
-    ),  # Example Claude model
+    ),
+    "gemini_2_5_flash_lite": (
+        "gemini-2.5-flash-lite",
+        GeminiProvider,
+        GEMINI_API_KEY,
+    ),
 }
 
 # Judge Model (using a more capable Groq model for judging)
-JUDGE_MODEL_NAME = "llama-3.1-70b-versatile"  # Or another strong Groq model
-JUDGE_API_KEY = GROQ_API_KEY  # Assuming Groq is used for judge as well
+JUDGE_MODEL_NAME = "llama-3.1-8b-instant"
+JUDGE_API_KEY = GROQ_API_KEY
 
 # LLM Config for generating answers (not for judging)
 ANSWER_GEN_LLM_CONFIG = LLMConfig(
