@@ -11,6 +11,7 @@ from frontend.llm.groq_provider import GroqProvider
 from frontend.llm.cohere_provider import CohereProvider
 from frontend.config.settings import get_config
 from frontend.config.models import get_model_spec
+from frontend.ui.graph_viz import render_knowledge_graph
 
 
 def mock_generate_response(user_query: str, context: List[ContextChunk]) -> str:
@@ -236,9 +237,7 @@ def render_ui():
             key="user_query_input",
         )
 
-        submit_button = st.button(
-            "🔍 Submit Query", type="primary", use_container_width=True
-        )
+        submit_button = st.button("🔍 Submit Query", type="primary", width="stretch")
 
         # Process query
         if submit_button and user_query:
@@ -344,13 +343,9 @@ def render_ui():
     with tab1:
         st.subheader("Knowledge Graph Visualization")
         if st.session_state.last_context:
-            st.info(
-                "Graph visualization feature coming soon. This will display the retrieved nodes and relationships from the knowledge graph."
-            )
-            # Placeholder for graph viz
+            render_knowledge_graph(st.session_state.last_context)
         else:
             st.info("Submit a query to see the knowledge graph visualization.")
-
     with tab2:
         st.subheader("Multi-Model Comparison")
         if user_query:
