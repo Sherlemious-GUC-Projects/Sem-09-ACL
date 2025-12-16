@@ -6,6 +6,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 import time
+from tqdm import tqdm
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
 from evaluation.types import (
@@ -43,6 +44,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+logging.disable(logging.CRITICAL)  # so we can have tqdm!
 
 # --- Configuration ---
 GOLD_STANDARD_PATH = "src/evaluation/data/gold_standard.json"
@@ -162,8 +164,7 @@ def run_evaluation() -> None:
         f"{len(target_llm_providers)} LLMs, and 2 retrieval strategies."
     )
 
-    for i, test_case in enumerate(test_cases):
-        time.sleep(60)  # To avoid rate limits between test cases
+    for i, test_case in tqdm(list(enumerate(test_cases))):
         logger.info(
             f"\n--- Running Test Case {i + 1}/{len(test_cases)}: {test_case.question} ---"
         )
@@ -182,6 +183,7 @@ def run_evaluation() -> None:
             # We can't proceed with KG for this test case if processing fails
 
         for llm_alias, llm_provider in target_llm_providers.items():
+            time.sleep(60)  # To avoid rate limits between test cases
             for retrieval_strategy in [RetrievalStrategy.DENSE, RetrievalStrategy.KG]:
                 logger.info(
                     f"  Evaluating {llm_alias} with {retrieval_strategy.value} retrieval..."
