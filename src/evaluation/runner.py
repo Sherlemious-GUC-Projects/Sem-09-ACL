@@ -59,12 +59,12 @@ CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
 # Ensure these match the model_name expected by their respective providers
 TARGET_LLMS = {
     "groq_llama3_8b": (
-        "llama3-8b-8192",
+        "llama-3.1-8b-instant",
         GroqProvider,
         GROQ_API_KEY,
     ),  # Example Groq model
     "gemini_1_5_pro": (
-        "gemini-1.5-flash",
+        "gemini-1.5-flash-001",
         GeminiProvider,
         GEMINI_API_KEY,
     ),  # Example Gemini model
@@ -76,7 +76,7 @@ TARGET_LLMS = {
 }
 
 # Judge Model (using a more capable Groq model for judging)
-JUDGE_MODEL_NAME = "llama-3.3-70b-versatile"  # Or another strong Groq model
+JUDGE_MODEL_NAME = "llama-3.1-70b-versatile"  # Or another strong Groq model
 JUDGE_API_KEY = GROQ_API_KEY  # Assuming Groq is used for judge as well
 
 # LLM Config for generating answers (not for judging)
