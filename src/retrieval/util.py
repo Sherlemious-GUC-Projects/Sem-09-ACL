@@ -28,6 +28,8 @@ def load_config(path: str = CONFIG_PATH) -> Config:
     ### parse config file ###
     config_dict = {}
     for line in lines:
+        if line == "" or line.startswith("#"):
+            continue
         key, value = line.strip().split("=")
         config_dict[key] = value
 
