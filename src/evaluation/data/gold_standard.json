@@ -3,5 +3,105 @@
     "question": "What was the food satisfaction rating for flight A320-200?",
     "ground_truth_answer": "The food satisfaction rating for flight A320-200 was 3 out of 5.",
     "ground_truth_context": "Flight 2378 operates from DEX to AUX as a 1-leg journey using A320-200 aircraft. The route covers 775 miles and serves passengers in Economy class. Typical arrival delay is -19 minutes. Passenger feedback includes a food satisfaction score of 3/5, submitted under feedback ID F_2079. This record reflects a Gen X passenger with premier gold loyalty status."
+  },
+  {
+    "question": "Which flight operated from LAX to IAX and what aircraft type was used?",
+    "ground_truth_answer": "Flight 2411 operated from LAX to IAX using a B777-200 aircraft.",
+    "ground_truth_context": "The record for flight number 2411 shows an origin of LAX and a destination of IAX. The aircraft fleet type listed is B777-200. The journey consisted of three legs in Economy class with an arrival delay of -13 minutes and feedback ID F_1."
+  },
+  {
+    "question": "Are there flights operating from DEX to EWX in the dataset?",
+    "ground_truth_answer": "Yes, there are multiple flights operating from DEX to EWX in the dataset.",
+    "ground_truth_context": "Several records list DEX as the origin and EWX as the destination. One example is flight 2614, which operated this route as a two-leg Economy journey using a B737-900 aircraft with feedback ID F_4."
+  },
+  {
+    "question": "What was the arrival delay for flight 659?",
+    "ground_truth_answer": "Flight 659 arrived with a delay of 177 minutes.",
+    "ground_truth_context": "Flight 659 operated from EWX to IAX as a two-leg Economy journey. The arrival_delay_minutes field for this record is 177 minutes, indicating a significant delay. Passenger feedback was recorded under ID F_3."
+  },
+  {
+    "question": "Did flight 924 arrive early or late?",
+    "ground_truth_answer": "Flight 924 arrived early.",
+    "ground_truth_context": "The record for flight 924 shows an arrival delay of -29 minutes, meaning the flight arrived 29 minutes earlier than scheduled. It was a direct Economy flight from LAX to LHX with feedback ID F_2."
+  },
+  {
+    "question": "What was the food satisfaction rating for flight 5372?",
+    "ground_truth_answer": "The food satisfaction rating for flight 5372 was 4 out of 5.",
+    "ground_truth_context": "Flight 5372 operated from DEX to DFX as a one-leg Economy journey. Passenger feedback under feedback ID F_5 reported a food satisfaction score of 4 out of 5."
+  },
+  {
+    "question": "Which flight received the lowest food satisfaction score on the LAX to LHX route?",
+    "ground_truth_answer": "Flight 924 received the lowest food satisfaction score on the LAX to LHX route.",
+    "ground_truth_context": "On the LAX to LHX route, flight 924 has a recorded food satisfaction score of 1 out of 5. This feedback is associated with feedback ID F_2 and reflects a non-elite Millennial passenger."
+  },
+  {
+    "question": "How many miles did flight 2614 cover?",
+    "ground_truth_answer": "Flight 2614 covered 1,605 miles.",
+    "ground_truth_context": "The record for flight 2614 indicates actual_flown_miles of 1,605. The flight operated from DEX to EWX as a two-leg journey in Economy class with feedback ID F_4."
+  },
+  {
+    "question": "Is the DEX to EWX route operated with connecting flights?",
+    "ground_truth_answer": "Yes, the DEX to EWX route is operated with connecting flights.",
+    "ground_truth_context": "Flight 2614, which operates from DEX to EWX, is listed as a two-leg journey. This indicates that the route involves a connection rather than a direct flight."
+  },
+  {
+    "question": "What loyalty level did the passenger on flight 5372 have?",
+    "ground_truth_answer": "The passenger on flight 5372 had premier silver loyalty status.",
+    "ground_truth_context": "For flight 5372, the loyalty_program_level field is listed as premier silver. This information is associated with feedback ID F_5 for the DEX to DFX route."
+  },
+  {
+    "question": "Did any non-elite passengers report feedback on delayed flights?",
+    "ground_truth_answer": "Yes, non-elite passengers reported feedback on delayed flights.",
+    "ground_truth_context": "Flight 659 shows a non-elite passenger with a recorded delay of 177 minutes. The feedback for this delayed flight is captured under feedback ID F_3."
+  },
+  {
+    "question": "Which generation provided feedback for flight 2411?",
+    "ground_truth_answer": "The feedback for flight 2411 was provided by a Millennial passenger.",
+    "ground_truth_context": "The generation field for flight 2411 is listed as Millennial. This demographic information accompanies feedback ID F_1."
+  },
+  {
+    "question": "Did Gen X passengers submit feedback for flights from DEX?",
+    "ground_truth_answer": "Yes, Gen X passengers submitted feedback for flights from DEX.",
+    "ground_truth_context": "Flight 2614 and flight 5372 both originate from DEX and list the passenger generation as Gen X. These records confirm Gen X participation in feedback from DEX-origin flights."
+  },
+  {
+    "question": "How many feedback entries are associated with flight 2614?",
+    "ground_truth_answer": "There is one feedback entry associated with flight 2614.",
+    "ground_truth_context": "Flight 2614 appears once in the dataset and is linked to a single feedback record with feedback ID F_4."
+  },
+  {
+    "question": "Is there passenger feedback available for flights between LAX and LHX?",
+    "ground_truth_answer": "Yes, there is passenger feedback available for flights between LAX and LHX.",
+    "ground_truth_context": "Flight 924 operates from LAX to LHX and has an associated feedback entry recorded under feedback ID F_2."
+  },
+  {
+    "question": "What was the arrival performance of the B777-200 aircraft on flight 2411?",
+    "ground_truth_answer": "The B777-200 aircraft on flight 2411 arrived 13 minutes early.",
+    "ground_truth_context": "Flight 2411 used a B777-200 aircraft and has an arrival_delay_minutes value of -13, indicating early arrival. This information is linked to feedback ID F_1."
+  },
+  {
+    "question": "Which fleet type was used for the DEX to DFX route?",
+    "ground_truth_answer": "The DEX to DFX route was operated using an ERJ-175 aircraft.",
+    "ground_truth_context": "Flight 5372, which operates from DEX to DFX, lists ERJ-175 as its fleet_type_description. The feedback for this flight is recorded under ID F_5."
+  },
+  {
+    "question": "Were Economy class passengers included in the feedback dataset?",
+    "ground_truth_answer": "Yes, Economy class passengers are included in the feedback dataset.",
+    "ground_truth_context": "All example records, including flights 2411, 924, 659, 2614, and 5372, list passenger_class as Economy, confirming Economy class coverage in the feedback."
+  },
+  {
+    "question": "Did any Economy class flight experience significant delays?",
+    "ground_truth_answer": "Yes, at least one Economy class flight experienced significant delays.",
+    "ground_truth_context": "Flight 659, an Economy class journey from EWX to IAX, experienced a delay of 177 minutes, which is recorded under feedback ID F_3."
+  },
+  {
+    "question": "Are multi-leg journeys represented in the dataset?",
+    "ground_truth_answer": "Yes, the dataset includes multi-leg journeys.",
+    "ground_truth_context": "Flight 2411 is listed as a three-leg journey, flight 659 as a two-leg journey, and flight 2614 as a two-leg journey, demonstrating the presence of connecting flights."
+  },
+  {
+    "question": "Is there enough information to determine passenger satisfaction trends by airport alone?",
+    "ground_truth_answer": "No, the dataset does not directly provide aggregated satisfaction trends by airport alone.",
+    "ground_truth_context": "While individual records include origin and destination airport codes along with food satisfaction scores, the dataset does not contain pre-aggregated airport-level satisfaction metrics. Any such analysis would require additional aggregation beyond the raw records."
   }
 ]
