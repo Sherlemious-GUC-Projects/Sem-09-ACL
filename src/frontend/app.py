@@ -8,6 +8,7 @@ from frontend.llm.prompt_builder import build_prompt
 from frontend.llm.gemini_provider import GeminiProvider
 from frontend.llm.claude_provider import ClaudeProvider
 from frontend.llm.groq_provider import GroqProvider
+from frontend.llm.cohere_provider import CohereProvider
 from frontend.config.settings import get_config
 from frontend.config.models import get_model_spec
 
@@ -61,6 +62,13 @@ def get_provider(model_name: str):
             )
         return GroqProvider(model_name, config.llm_providers.groq_api_key)
 
+    elif spec.provider == "cohere":
+        if not config.llm_providers.cohere_api_key:
+            raise ValueError(
+                "Cohere API key is not configured. Please set COHERE_API_KEY environment variable or add it to config.yaml"
+            )
+        return CohereProvider(model_name, config.llm_providers.cohere_api_key)
+
     else:
         raise ValueError(f"Unknown provider: {spec.provider}")
 
@@ -69,7 +77,7 @@ def generate_response(
     user_query: str,
     context: List[ContextChunk],
     model_name: str = "gemini-1.5-flash",
-    config: LLMConfig = None,
+    config: LLMConfig | None = None,
 ) -> LLMResponse:
     """
     Generate LLM response using provided context.

@@ -28,6 +28,7 @@ dependencies = [
     "neo4j>=5.14.0",
     "types-pyyaml>=6.0.12.20250915",
     "watchdog>=6.0.0",
+    "cohere>=5.20.0",
 ]
 
 [dependency-groups]
