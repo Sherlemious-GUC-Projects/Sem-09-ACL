@@ -43,6 +43,22 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         output_price_per_1k=0.00008,
         display_name="Llama 3.1 8B (Ultra Fast)",
     ),
+    "moonshotai/kimi-k2-instruct-0905": ModelSpec(
+        name="moonshotai/kimi-k2-instruct-0905",
+        provider="groq",
+        context_window=131_072,
+        input_price_per_1k=0.00005,
+        output_price_per_1k=0.00008,
+        display_name="Kimi K2 Instruct (Moonshot AI)",
+    ),
+    "whisper-large-v3-turbo": ModelSpec(
+        name="whisper-large-v3-turbo",
+        provider="groq",
+        context_window=448,
+        input_price_per_1k=0.00002,
+        output_price_per_1k=0.00002,
+        display_name="Whisper Large V3 Turbo (Audio)",
+    ),
     # Cohere Models (Free tier available)
     "command-a-vision-07-2025": ModelSpec(
         name="command-a-vision-07-2025",
