@@ -7,7 +7,7 @@ class ModelSpec:
     """Specification for an LLM model."""
 
     name: str
-    provider: str  # "gemini", "claude", "groq"
+    provider: str  # "gemini", "claude", "groq", "cohere"
     context_window: int  # Maximum context tokens
     input_price_per_1k: float  # USD per 1000 input tokens
     output_price_per_1k: float  # USD per 1000 output tokens
@@ -42,6 +42,31 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         input_price_per_1k=0.00005,
         output_price_per_1k=0.00008,
         display_name="Llama 3.1 8B (Ultra Fast)",
+    ),
+    # Cohere Models (Free tier available)
+    "command-a-vision-07-2025": ModelSpec(
+        name="command-a-vision-07-2025",
+        provider="cohere",
+        context_window=128_000,
+        input_price_per_1k=0.0,  # Free tier
+        output_price_per_1k=0.0,  # Free tier
+        display_name="Command A Vision (Multimodal)",
+    ),
+    "command-a-reasoning-08-2025": ModelSpec(
+        name="command-a-reasoning-08-2025",
+        provider="cohere",
+        context_window=128_000,
+        input_price_per_1k=0.0,  # Free tier
+        output_price_per_1k=0.0,  # Free tier
+        display_name="Command A Reasoning (Advanced)",
+    ),
+    "c4ai-aya-expanse-32b": ModelSpec(
+        name="c4ai-aya-expanse-32b",
+        provider="cohere",
+        context_window=128_000,
+        input_price_per_1k=0.0,  # Free tier
+        output_price_per_1k=0.0,  # Free tier
+        display_name="Aya Expanse 32B (Multilingual)",
     ),
 }
 
@@ -95,7 +120,7 @@ def get_models_by_provider(provider: str) -> list[str]:
     Get all models for a specific provider.
 
     Args:
-        provider: "gemini", "claude", or "groq"
+        provider: "gemini", "claude", "groq", or "cohere"
 
     Returns:
         List of model names
@@ -111,4 +136,5 @@ MODEL_PRESETS = {
     "Most Intelligent": "gemini-3-pro-preview",
     "Advanced Thinking": "gemini-2.5-pro",
     "Ultra Fast (Groq)": "llama-3.1-8b-instant",
+    "Free Reasoning (Cohere)": "command-a-reasoning-08-2025",
 }

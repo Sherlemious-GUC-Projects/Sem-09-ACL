@@ -24,6 +24,7 @@ class LLMProviderConfig:
     gemini_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
     groq_api_key: Optional[str] = None
+    cohere_api_key: Optional[str] = None
 
 
 @dataclass
@@ -157,6 +158,9 @@ def load_config() -> AppConfig:
         groq_api_key=os.getenv(
             "GROQ_API_KEY", llm_providers_config.get("groq", {}).get("api_key", "")
         ),
+        cohere_api_key=os.getenv(
+            "COHERE_API_KEY", llm_providers_config.get("cohere", {}).get("api_key", "")
+        ),
     )
 
     # UI Settings
@@ -234,6 +238,7 @@ def validate_api_keys() -> dict[str, bool]:
         "gemini": bool(config.llm_providers.gemini_api_key),
         "claude": bool(config.llm_providers.anthropic_api_key),
         "groq": bool(config.llm_providers.groq_api_key),
+        "cohere": bool(config.llm_providers.cohere_api_key),
     }
 
 
