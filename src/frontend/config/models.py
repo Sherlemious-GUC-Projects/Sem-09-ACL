@@ -7,7 +7,7 @@ class ModelSpec:
     """Specification for an LLM model."""
 
     name: str
-    provider: str  # "gemini", "claude", "groq"
+    provider: str  # "gemini", "claude", "groq", "cohere"
     context_window: int  # Maximum context tokens
     input_price_per_1k: float  # USD per 1000 input tokens
     output_price_per_1k: float  # USD per 1000 output tokens
@@ -17,39 +17,22 @@ class ModelSpec:
 # Model specifications database
 # Pricing as of December 2024 - update periodically
 MODEL_SPECS: Dict[str, ModelSpec] = {
-    # Google Gemini Models
-    "gemini-1.5-flash": ModelSpec(
-        name="gemini-1.5-flash",
+    # Google Gemini Models (2025)
+    "gemini-2.5-flash": ModelSpec(
+        name="gemini-2.5-flash",
         provider="gemini",
-        context_window=1_000_000,
-        input_price_per_1k=0.00015,
-        output_price_per_1k=0.0006,
-        display_name="Gemini 1.5 Flash (Fast & Cheap)",
+        context_window=1_048_576,
+        input_price_per_1k=0.0002,
+        output_price_per_1k=0.0008,
+        display_name="Gemini 2.5 Flash (Fast & Intelligent)",
     ),
-    "gemini-1.5-pro": ModelSpec(
-        name="gemini-1.5-pro",
+    "gemini-2.5-flash-lite": ModelSpec(
+        name="gemini-2.5-flash-lite",
         provider="gemini",
-        context_window=2_000_000,
-        input_price_per_1k=0.00125,
-        output_price_per_1k=0.005,
-        display_name="Gemini 1.5 Pro (High Quality)",
-    ),
-    # Anthropic Claude Models
-    "claude-3-5-haiku-20241022": ModelSpec(
-        name="claude-3-5-haiku-20241022",
-        provider="claude",
-        context_window=200_000,
-        input_price_per_1k=0.00025,
-        output_price_per_1k=0.00125,
-        display_name="Claude 3.5 Haiku (Fast & Cheap)",
-    ),
-    "claude-3-5-sonnet-20241022": ModelSpec(
-        name="claude-3-5-sonnet-20241022",
-        provider="claude",
-        context_window=200_000,
-        input_price_per_1k=0.003,
-        output_price_per_1k=0.015,
-        display_name="Claude 3.5 Sonnet (Balanced)",
+        context_window=1_048_576,
+        input_price_per_1k=0.0001,
+        output_price_per_1k=0.0004,
+        display_name="Gemini 2.5 Flash-Lite (Ultra Fast)",
     ),
     # Groq Models (Free tier available)
     "llama-3.1-8b-instant": ModelSpec(
@@ -60,29 +43,46 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         output_price_per_1k=0.00008,
         display_name="Llama 3.1 8B (Ultra Fast)",
     ),
-    "llama-3.1-70b-versatile": ModelSpec(
-        name="llama-3.1-70b-versatile",
+    "moonshotai/kimi-k2-instruct-0905": ModelSpec(
+        name="moonshotai/kimi-k2-instruct-0905",
         provider="groq",
         context_window=131_072,
-        input_price_per_1k=0.00059,
-        output_price_per_1k=0.00079,
-        display_name="Llama 3.1 70B (Powerful)",
+        input_price_per_1k=0.00005,
+        output_price_per_1k=0.00008,
+        display_name="Kimi K2 Instruct (Moonshot AI)",
     ),
-    "mixtral-8x7b-32768": ModelSpec(
-        name="mixtral-8x7b-32768",
+    "whisper-large-v3-turbo": ModelSpec(
+        name="whisper-large-v3-turbo",
         provider="groq",
-        context_window=32_768,
-        input_price_per_1k=0.00024,
-        output_price_per_1k=0.00024,
-        display_name="Mixtral 8x7B (MoE)",
+        context_window=448,
+        input_price_per_1k=0.00002,
+        output_price_per_1k=0.00002,
+        display_name="Whisper Large V3 Turbo (Audio)",
     ),
-    "gemma2-9b-it": ModelSpec(
-        name="gemma2-9b-it",
-        provider="groq",
-        context_window=8_192,
-        input_price_per_1k=0.0002,
-        output_price_per_1k=0.0002,
-        display_name="Gemma 2 9B (Efficient)",
+    # Cohere Models (Free tier available)
+    "command-a-vision-07-2025": ModelSpec(
+        name="command-a-vision-07-2025",
+        provider="cohere",
+        context_window=128_000,
+        input_price_per_1k=0.0,  # Free tier
+        output_price_per_1k=0.0,  # Free tier
+        display_name="Command A Vision (Multimodal)",
+    ),
+    "command-a-reasoning-08-2025": ModelSpec(
+        name="command-a-reasoning-08-2025",
+        provider="cohere",
+        context_window=128_000,
+        input_price_per_1k=0.0,  # Free tier
+        output_price_per_1k=0.0,  # Free tier
+        display_name="Command A Reasoning (Advanced)",
+    ),
+    "c4ai-aya-expanse-32b": ModelSpec(
+        name="c4ai-aya-expanse-32b",
+        provider="cohere",
+        context_window=128_000,
+        input_price_per_1k=0.0,  # Free tier
+        output_price_per_1k=0.0,  # Free tier
+        display_name="Aya Expanse 32B (Multilingual)",
     ),
 }
 
@@ -136,7 +136,7 @@ def get_models_by_provider(provider: str) -> list[str]:
     Get all models for a specific provider.
 
     Args:
-        provider: "gemini", "claude", or "groq"
+        provider: "gemini", "claude", "groq", or "cohere"
 
     Returns:
         List of model names
@@ -146,8 +146,11 @@ def get_models_by_provider(provider: str) -> list[str]:
 
 # Model presets for different use cases
 MODEL_PRESETS = {
-    "Fast": "gemini-1.5-flash",
-    "Balanced": "claude-3-5-haiku-20241022",
+    "Fast": "gemini-2.5-flash-lite",
+    "Balanced": "gemini-2.5-flash",
     "High Quality": "claude-3-5-sonnet-20241022",
+    "Most Intelligent": "gemini-3-pro-preview",
+    "Advanced Thinking": "gemini-2.5-pro",
     "Ultra Fast (Groq)": "llama-3.1-8b-instant",
+    "Free Reasoning (Cohere)": "command-a-reasoning-08-2025",
 }
