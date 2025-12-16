@@ -34,7 +34,6 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         output_price_per_1k=0.0004,
         display_name="Gemini 2.5 Flash-Lite (Ultra Fast)",
     ),
-    
     # Groq Models (Free tier available)
     "llama-3.1-8b-instant": ModelSpec(
         name="llama-3.1-8b-instant",
@@ -43,30 +42,6 @@ MODEL_SPECS: Dict[str, ModelSpec] = {
         input_price_per_1k=0.00005,
         output_price_per_1k=0.00008,
         display_name="Llama 3.1 8B (Ultra Fast)",
-    ),
-    "llama-3.1-70b-versatile": ModelSpec(
-        name="llama-3.1-70b-versatile",
-        provider="groq",
-        context_window=131_072,
-        input_price_per_1k=0.00059,
-        output_price_per_1k=0.00079,
-        display_name="Llama 3.1 70B (Powerful)",
-    ),
-    "mixtral-8x7b-32768": ModelSpec(
-        name="mixtral-8x7b-32768",
-        provider="groq",
-        context_window=32_768,
-        input_price_per_1k=0.00024,
-        output_price_per_1k=0.00024,
-        display_name="Mixtral 8x7B (MoE)",
-    ),
-    "gemma2-9b-it": ModelSpec(
-        name="gemma2-9b-it",
-        provider="groq",
-        context_window=8_192,
-        input_price_per_1k=0.0002,
-        output_price_per_1k=0.0002,
-        display_name="Gemma 2 9B (Efficient)",
     ),
 }
 
