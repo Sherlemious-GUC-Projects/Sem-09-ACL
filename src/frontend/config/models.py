@@ -17,22 +17,38 @@ class ModelSpec:
 # Model specifications database
 # Pricing as of December 2024 - update periodically
 MODEL_SPECS: Dict[str, ModelSpec] = {
-    # Google Gemini Models
-    "gemini-1.5-flash": ModelSpec(
-        name="gemini-1.5-flash",
+    # Google Gemini Models (2025)
+    "gemini-3-pro-preview": ModelSpec(
+        name="gemini-3-pro-preview",
         provider="gemini",
-        context_window=1_000_000,
-        input_price_per_1k=0.00015,
-        output_price_per_1k=0.0006,
-        display_name="Gemini 1.5 Flash (Fast & Cheap)",
+        context_window=1_048_576,
+        input_price_per_1k=0.0025,  # Estimated pricing
+        output_price_per_1k=0.01,  # Estimated pricing
+        display_name="Gemini 3 Pro Preview (Most Intelligent)",
     ),
-    "gemini-1.5-pro": ModelSpec(
-        name="gemini-1.5-pro",
+    "gemini-2.5-flash": ModelSpec(
+        name="gemini-2.5-flash",
         provider="gemini",
-        context_window=2_000_000,
-        input_price_per_1k=0.00125,
-        output_price_per_1k=0.005,
-        display_name="Gemini 1.5 Pro (High Quality)",
+        context_window=1_048_576,
+        input_price_per_1k=0.0002,
+        output_price_per_1k=0.0008,
+        display_name="Gemini 2.5 Flash (Fast & Intelligent)",
+    ),
+    "gemini-2.5-flash-lite": ModelSpec(
+        name="gemini-2.5-flash-lite",
+        provider="gemini",
+        context_window=1_048_576,
+        input_price_per_1k=0.0001,
+        output_price_per_1k=0.0004,
+        display_name="Gemini 2.5 Flash-Lite (Ultra Fast)",
+    ),
+    "gemini-2.5-pro": ModelSpec(
+        name="gemini-2.5-pro",
+        provider="gemini",
+        context_window=1_048_576,
+        input_price_per_1k=0.0015,
+        output_price_per_1k=0.006,
+        display_name="Gemini 2.5 Pro (Advanced Thinking)",
     ),
     # Anthropic Claude Models
     "claude-3-5-haiku-20241022": ModelSpec(
@@ -146,8 +162,10 @@ def get_models_by_provider(provider: str) -> list[str]:
 
 # Model presets for different use cases
 MODEL_PRESETS = {
-    "Fast": "gemini-1.5-flash",
-    "Balanced": "claude-3-5-haiku-20241022",
+    "Fast": "gemini-2.5-flash-lite",
+    "Balanced": "gemini-2.5-flash",
     "High Quality": "claude-3-5-sonnet-20241022",
+    "Most Intelligent": "gemini-3-pro-preview",
+    "Advanced Thinking": "gemini-2.5-pro",
     "Ultra Fast (Groq)": "llama-3.1-8b-instant",
 }
