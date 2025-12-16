@@ -5,8 +5,8 @@ from typing import Dict, Any, List
 import logging
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.frontend.llm.groq_provider import GroqProvider
-from src.frontend.llm.base import LLMConfig, APIKeyMissingError
+from frontend.llm.groq_provider import GroqProvider
+from frontend.llm.base import LLMConfig, APIKeyMissingError
 
 ### ~~~ STATE DEFINITIONS ~~~ ###
 logger = logging.getLogger(__name__)

@@ -3,8 +3,8 @@ import numpy as np
 from numpy.linalg import norm
 
 ### ~~~ LOCAL IMPORTS ~~~ ###
-from src.retrieval.vector import embed  # Reusing the project's embedding function
-from src.utils.constant import USE_OLLAMA
+from retrieval.vector import embed  # Reusing the project's embedding function
+from utils.constant import USE_OLLAMA
 
 ### ~~~ FUNCTION DEFINITIONS ~~~ ###
 
