@@ -1,0 +1,7 @@
+[
+  {
+    "question": "What was the food satisfaction rating for flight A320-200?",
+    "ground_truth_answer": "The food satisfaction rating for flight A320-200 was 3 out of 5.",
+    "ground_truth_context": "Flight 2378 operates from DEX to AUX as a 1-leg journey using A320-200 aircraft. The route covers 775 miles and serves passengers in Economy class. Typical arrival delay is -19 minutes. Passenger feedback includes a food satisfaction score of 3/5, submitted under feedback ID F_2079. This record reflects a Gen X passenger with premier gold loyalty status."
+  }
+]
